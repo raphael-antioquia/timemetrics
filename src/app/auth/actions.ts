@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { reportUnexpectedAuthError } from "@/lib/observability/auth-errors";
 
 function getFormString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -45,8 +46,15 @@ export async function signUp(formData: FormData) {
     password,
   });
 
-   if (error) {
-    redirectWithMessage("/sign-up", "error", error.message || "Unknown error");
+  if (error) {
+    reportUnexpectedAuthError(error, "sign_up");
+
+    const message =
+      error.status !== undefined && error.status < 500
+        ? error.message
+        : "We could not create your account right now. Please try again.";
+
+    redirectWithMessage("/sign-up", "error", message);
   }
 
   redirectWithMessage(
@@ -76,7 +84,14 @@ export async function signIn(formData: FormData) {
   });
 
   if (error) {
-    redirectWithMessage("/sign-in", "error", error.message);
+    reportUnexpectedAuthError(error, "sign_in");
+
+    const message =
+      error.status !== undefined && error.status < 500
+        ? error.message
+        : "We could not sign you in right now. Please try again.";
+
+    redirectWithMessage("/sign-in", "error", message);
   }
 
   redirect("/");
