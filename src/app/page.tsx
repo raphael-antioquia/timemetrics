@@ -1,7 +1,24 @@
-export default function HomePage() {
+import { redirect } from "next/navigation";
+import { CreateActivityForm } from "@/components/activities/create-activity-form";
+import { createClient } from "@/lib/supabase/server";
+
+export default async function HomePage() {
+   const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/sign-in");
+  }
+
   return (
     <main className="min-h-screen bg-background px-6 py-12">
       <section className="mx-auto flex min-h-[80vh] max-w-3xl flex-col justify-center">
+        <p className="mb-6 text-sm text-gray-600">
+          Signed in as {user.email}
+        </p>
         <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
           TimeMetrics
         </p>
@@ -25,6 +42,10 @@ export default function HomePage() {
             View demo
           </button>
         </div>
+      </section>
+      <section className="rounded-lg border p-4">
+        <h2 className="mb-4 text-lg font-medium">Create an activity</h2>
+        <CreateActivityForm />
       </section>
     </main>
   );
