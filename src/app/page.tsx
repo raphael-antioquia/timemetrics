@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
 import { CreateActivityForm } from "@/components/activities/create-activity-form";
+import { ActivityList } from "@/components/activities/activity-list";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function HomePage() {
-   const supabase = await createClient();
+  const supabase = await createClient();
 
   const {
     data: { user },
@@ -13,40 +14,54 @@ export default async function HomePage() {
     redirect("/sign-in");
   }
 
+  const { data: activities, error: activitiesError } = await supabase
+    .from("activities")
+    .select("id, name")
+    .eq("user_id", user.id)
+    .order("name", { ascending: true });
+
+  const activityList = activities ?? [];
+
   return (
     <main className="min-h-screen bg-background px-6 py-12">
-      <section className="mx-auto flex min-h-[80vh] max-w-3xl flex-col justify-center">
-        <p className="mb-6 text-sm text-gray-600">
-          Signed in as {user.email}
-        </p>
-        <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-          TimeMetrics
-        </p>
+      <div className="mx-auto max-w-3xl">
+        <header>
+          <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+            TimeMetrics
+          </p>
 
-        <h1 className="mt-4 text-4xl font-bold tracking-tight sm:text-5xl">
-          Track your time. Understand your patterns.
-        </h1>
+          <h1 className="mt-4 text-4xl font-bold tracking-tight">
+            Activities
+          </h1>
 
-        <p className="mt-6 max-w-2xl text-lg text-muted-foreground">
-          A personal productivity app for logging focused work sessions,
-          reviewing daily history, and understanding where your time actually
-          goes.
-        </p>
+          <p className="mt-3 text-muted-foreground">
+            Create and manage the activities you want to track.
+          </p>
 
-        <div className="mt-8 flex gap-4">
-          <button className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background">
-            Start tracking
-          </button>
+          <p className="mt-4 text-sm text-gray-600">
+            Signed in as {user.email}
+          </p>
+        </header>
 
-          <button className="rounded-md border px-4 py-2 text-sm font-medium">
-            View demo
-          </button>
-        </div>
-      </section>
-      <section className="rounded-lg border p-4">
-        <h2 className="mb-4 text-lg font-medium">Create an activity</h2>
-        <CreateActivityForm />
-      </section>
+        <section className="mt-8 rounded-lg border p-4">
+          <h2 className="mb-4 text-lg font-medium">
+            Create an activity
+          </h2>
+
+          <CreateActivityForm />
+        </section>
+
+        <section className="mt-6 rounded-lg border p-4">
+          <h2 className="mb-4 text-lg font-medium">
+            Your activities
+          </h2>
+
+          <ActivityList
+            activities={activityList}
+            hasError={activitiesError !== null}
+          />
+        </section>
+      </div>
     </main>
   );
 }
