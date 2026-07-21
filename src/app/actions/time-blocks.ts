@@ -1,0 +1,154 @@
+"use server";
+
+import * as Sentry from "@sentry/nextjs";
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+import type {
+  CreateTimeBlockInput,
+  CreateTimeBlockResult,
+} from "./time-block-state";
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export async function createTimeBlock(
+  input: CreateTimeBlockInput,
+): Promise<CreateTimeBlockResult> {
+  const {
+    activityId,
+    startedAt,
+    endedAt,
+    durationSeconds,
+  } = input;
+
+  if (!UUID_PATTERN.test(activityId)) {
+    return {
+      status: "error",
+      message: "The selected activity is invalid.",
+    };
+  }
+
+  const startedAtMilliseconds = Date.parse(startedAt);
+  const endedAtMilliseconds = Date.parse(endedAt);
+
+  if (
+    !Number.isFinite(startedAtMilliseconds) ||
+    !Number.isFinite(endedAtMilliseconds)
+  ) {
+    return {
+      status: "error",
+      message: "The timer dates are invalid.",
+    };
+  }
+
+  if (endedAtMilliseconds <= startedAtMilliseconds) {
+    return {
+      status: "error",
+      message: "The timer end must be after its start.",
+    };
+  }
+
+  if (
+    !Number.isInteger(durationSeconds) ||
+    durationSeconds <= 0
+  ) {
+    return {
+      status: "error",
+      message: "The tracked duration must be positive.",
+    };
+  }
+
+  const wallClockSeconds = Math.floor(
+    (endedAtMilliseconds - startedAtMilliseconds) / 1000,
+  );
+
+  if (durationSeconds > wallClockSeconds) {
+    return {
+      status: "error",
+      message:
+        "The tracked duration cannot exceed the session time range.",
+    };
+  }
+
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return {
+      status: "error",
+      message:
+        "Your session could not be verified. Please sign in again.",
+    };
+  }
+
+  const {
+    data: activity,
+    error: activityError,
+  } = await supabase
+    .from("activities")
+    .select("id")
+    .eq("id", activityId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (activityError) {
+    Sentry.captureException(activityError, {
+      tags: {
+        operation: "verify_time_block_activity",
+      },
+    });
+
+    return {
+      status: "error",
+      message:
+        "We couldn't verify the selected activity. Please try again.",
+    };
+  }
+
+  if (!activity) {
+    return {
+      status: "error",
+      message:
+        "The selected activity could not be found.",
+    };
+  }
+
+  const { error: insertError } = await supabase
+    .from("time_blocks")
+    .insert({
+      user_id: user.id,
+      activity_id: activity.id,
+      started_at: new Date(
+        startedAtMilliseconds,
+      ).toISOString(),
+      ended_at: new Date(
+        endedAtMilliseconds,
+      ).toISOString(),
+      duration_seconds: durationSeconds,
+    });
+
+  if (insertError) {
+    Sentry.captureException(insertError, {
+      tags: {
+        operation: "create_time_block",
+      },
+    });
+
+    return {
+      status: "error",
+      message:
+        "We couldn't save this time session. Please try again.",
+    };
+  }
+
+  revalidatePath("/");
+
+  return {
+    status: "success",
+    message: "Time session saved.",
+  };
+}

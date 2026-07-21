@@ -1,6 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createTimeBlock } from "@/app/actions/time-blocks";
+import type {
+  CreateTimeBlockInput,
+  CreateTimeBlockResult,
+} from "@/app/actions/time-block-state";
 
 type TimerStatus = "idle" | "running" | "paused";
 
@@ -15,7 +20,9 @@ type ActivityTimerProps = {
 
 function formatElapsed(totalSeconds: number): string {
   const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const minutes = Math.floor(
+    (totalSeconds % 3600) / 60,
+  );
   const seconds = totalSeconds % 60;
 
   return [hours, minutes, seconds]
@@ -28,26 +35,31 @@ export function ActivityTimer({
 }: ActivityTimerProps) {
   const [selectedActivityId, setSelectedActivityId] =
     useState("");
+
   const [status, setStatus] =
     useState<TimerStatus>("idle");
 
-  // Original start time for the entire session.
   const [sessionStartedAt, setSessionStartedAt] =
     useState<number | null>(null);
 
-  // Start time for the currently running segment.
-  // This changes every time the timer resumes.
   const [segmentStartedAt, setSegmentStartedAt] =
     useState<number | null>(null);
 
-  // Active time completed before the current segment.
   const [
     accumulatedMilliseconds,
     setAccumulatedMilliseconds,
   ] = useState(0);
 
-  // Updated by the interval to trigger timer rendering.
   const [now, setNow] = useState(() => Date.now());
+
+  const [isSaving, setIsSaving] = useState(false);
+
+  const [saveResult, setSaveResult] =
+    useState<CreateTimeBlockResult | null>(null);
+
+  // Keeps the exact Stop payload when a save fails.
+  const [pendingTimeBlock, setPendingTimeBlock] =
+    useState<CreateTimeBlockInput | null>(null);
 
   useEffect(() => {
     if (status !== "running") {
@@ -60,7 +72,10 @@ export function ActivityTimer({
 
     updateNow();
 
-    const intervalId = window.setInterval(updateNow, 1000);
+    const intervalId = window.setInterval(
+      updateNow,
+      1000,
+    );
 
     return () => {
       window.clearInterval(intervalId);
@@ -68,12 +83,14 @@ export function ActivityTimer({
   }, [status]);
 
   const currentSegmentMilliseconds =
-    status === "running" && segmentStartedAt !== null
+    status === "running" &&
+    segmentStartedAt !== null
       ? Math.max(0, now - segmentStartedAt)
       : 0;
 
   const elapsedMilliseconds =
-    accumulatedMilliseconds + currentSegmentMilliseconds;
+    accumulatedMilliseconds +
+    currentSegmentMilliseconds;
 
   const elapsedSeconds = Math.floor(
     elapsedMilliseconds / 1000,
@@ -85,16 +102,44 @@ export function ActivityTimer({
     setSessionStartedAt(null);
     setSegmentStartedAt(null);
     setAccumulatedMilliseconds(0);
+    setPendingTimeBlock(null);
     setNow(resetAt);
   }
 
+  async function saveTimeBlock(
+    input: CreateTimeBlockInput,
+  ) {
+    setIsSaving(true);
+    setSaveResult(null);
+
+    try {
+      const result = await createTimeBlock(input);
+
+      setSaveResult(result);
+
+      if (result.status === "success") {
+        resetTimer(Date.now());
+      }
+    } catch {
+      setSaveResult({
+        status: "error",
+        message:
+          "We couldn't save this time session. Please try again.",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   function handleStart() {
-    if (!selectedActivityId) {
+    if (!selectedActivityId || isSaving) {
       return;
     }
 
     const startedAt = Date.now();
 
+    setSaveResult(null);
+    setPendingTimeBlock(null);
     setSessionStartedAt(startedAt);
     setSegmentStartedAt(startedAt);
     setAccumulatedMilliseconds(0);
@@ -105,7 +150,8 @@ export function ActivityTimer({
   function handlePause() {
     if (
       status !== "running" ||
-      segmentStartedAt === null
+      segmentStartedAt === null ||
+      isSaving
     ) {
       return;
     }
@@ -125,18 +171,31 @@ export function ActivityTimer({
   }
 
   function handleResume() {
-    if (status !== "paused") {
+    if (status !== "paused" || isSaving) {
       return;
     }
 
     const resumedAt = Date.now();
 
+    // A failed Stop can be cancelled by resuming.
+    setPendingTimeBlock(null);
+    setSaveResult(null);
     setSegmentStartedAt(resumedAt);
     setNow(resumedAt);
     setStatus("running");
   }
 
-  function handleStop() {
+  async function handleStop() {
+    if (isSaving) {
+      return;
+    }
+
+    // Retry the exact same stopped session after a failure.
+    if (pendingTimeBlock) {
+      await saveTimeBlock(pendingTimeBlock);
+      return;
+    }
+
     if (
       status === "idle" ||
       !selectedActivityId ||
@@ -148,7 +207,8 @@ export function ActivityTimer({
     const stoppedAt = Date.now();
 
     const finalSegmentMilliseconds =
-      status === "running" && segmentStartedAt !== null
+      status === "running" &&
+      segmentStartedAt !== null
         ? stoppedAt - segmentStartedAt
         : 0;
 
@@ -160,24 +220,30 @@ export function ActivityTimer({
       finalDurationMilliseconds / 1000,
     );
 
-    // Ignore accidental sessions shorter than one second.
     if (durationSeconds < 1) {
       resetTimer(stoppedAt);
       return;
     }
 
-    // Temporary verification only.
-    // This becomes the Server Action payload later.
-    console.log({
-      selectedActivityId,
+    const input: CreateTimeBlockInput = {
+      activityId: selectedActivityId,
       startedAt: new Date(
         sessionStartedAt,
       ).toISOString(),
       endedAt: new Date(stoppedAt).toISOString(),
       durationSeconds,
-    });
+    };
 
-    resetTimer(stoppedAt);
+    // Freeze the timer at the moment Stop was pressed.
+    setAccumulatedMilliseconds(
+      finalDurationMilliseconds,
+    );
+    setSegmentStartedAt(null);
+    setNow(stoppedAt);
+    setStatus("paused");
+    setPendingTimeBlock(input);
+
+    await saveTimeBlock(input);
   }
 
   return (
@@ -187,7 +253,7 @@ export function ActivityTimer({
         onChange={(event) =>
           setSelectedActivityId(event.target.value)
         }
-        disabled={status !== "idle"}
+        disabled={status !== "idle" || isSaving}
         className="w-full rounded-md border px-3 py-2 disabled:opacity-50"
       >
         <option value="">Select an activity</option>
@@ -211,7 +277,9 @@ export function ActivityTimer({
           <button
             type="button"
             onClick={handleStart}
-            disabled={!selectedActivityId}
+            disabled={
+              !selectedActivityId || isSaving
+            }
             className="rounded-md bg-black px-4 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
             Start
@@ -222,7 +290,8 @@ export function ActivityTimer({
           <button
             type="button"
             onClick={handlePause}
-            className="rounded-md border px-4 py-2"
+            disabled={isSaving}
+            className="rounded-md border px-4 py-2 disabled:opacity-50"
           >
             Pause
           </button>
@@ -232,7 +301,8 @@ export function ActivityTimer({
           <button
             type="button"
             onClick={handleResume}
-            className="rounded-md border px-4 py-2"
+            disabled={isSaving}
+            className="rounded-md border px-4 py-2 disabled:opacity-50"
           >
             Resume
           </button>
@@ -241,13 +311,35 @@ export function ActivityTimer({
         {status !== "idle" && (
           <button
             type="button"
-            onClick={handleStop}
-            className="rounded-md bg-red-600 px-4 py-2 text-white"
+            onClick={() => void handleStop()}
+            disabled={isSaving}
+            className="rounded-md bg-red-600 px-4 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Stop
+            {isSaving
+              ? "Saving..."
+              : pendingTimeBlock
+                ? "Retry save"
+                : "Stop"}
           </button>
         )}
       </div>
+
+      {saveResult && (
+        <p
+          role={
+            saveResult.status === "error"
+              ? "alert"
+              : "status"
+          }
+          className={
+            saveResult.status === "error"
+              ? "text-sm text-red-600"
+              : "text-sm text-green-600"
+          }
+        >
+          {saveResult.message}
+        </p>
+      )}
     </div>
   );
 }
