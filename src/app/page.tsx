@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { CreateActivityForm } from "@/components/activities/create-activity-form";
 import { ActivityList } from "@/components/activities/activity-list";
+import { ActivityTimer } from "@/components/timer/activity-timer";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function HomePage() {
@@ -42,6 +43,15 @@ export default async function HomePage() {
             Signed in as {user.email}
           </p>
         </header>
+        
+        <section className="mt-8 rounded-lg border p-4">
+          <h2 className="mb-4 text-lg font-medium">
+            Track time
+          </h2>
+
+          <ActivityTimer activities={activityList} />
+        </section>
+          
 
         <section className="mt-8 rounded-lg border p-4">
           <h2 className="mb-4 text-lg font-medium">
