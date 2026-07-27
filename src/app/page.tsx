@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { CreateActivityForm } from "@/components/activities/create-activity-form";
 import { ActivityList } from "@/components/activities/activity-list";
+import { TimeBlockList } from "@/components/time-blocks/time-block-list";
 import { ActivityTimer } from "@/components/timer/activity-timer";
 import { createClient } from "@/lib/supabase/server";
 
@@ -15,13 +16,34 @@ export default async function HomePage() {
     redirect("/sign-in");
   }
 
-  const { data: activities, error: activitiesError } = await supabase
-    .from("activities")
-    .select("id, name")
-    .eq("user_id", user.id)
-    .order("name", { ascending: true });
+  const [
+    { data: activities, error: activitiesError },
+    { data: timeBlocks, error: timeBlocksError },
+  ] = await Promise.all([
+    supabase
+      .from("activities")
+      .select("id, name")
+      .eq("user_id", user.id)
+      .order("name", { ascending: true }),
+
+    supabase
+      .from("time_blocks")
+      .select(`
+        id,
+        started_at,
+        ended_at,
+        duration_seconds,
+        activity:activities (
+          name
+        )
+      `)
+      .eq("user_id", user.id)
+      .order("started_at", { ascending: false })
+      .limit(20),
+  ]);
 
   const activityList = activities ?? [];
+  const timeBlockList = timeBlocks ?? [];
 
   return (
     <main className="min-h-screen bg-background px-6 py-12">
@@ -32,18 +54,18 @@ export default async function HomePage() {
           </p>
 
           <h1 className="mt-4 text-4xl font-bold tracking-tight">
-            Activities
+            Track your time
           </h1>
 
           <p className="mt-3 text-muted-foreground">
-            Create and manage the activities you want to track.
+            Track focused sessions and review your recent work.
           </p>
 
           <p className="mt-4 text-sm text-gray-600">
             Signed in as {user.email}
           </p>
         </header>
-        
+
         <section className="mt-8 rounded-lg border p-4">
           <h2 className="mb-4 text-lg font-medium">
             Track time
@@ -51,7 +73,6 @@ export default async function HomePage() {
 
           <ActivityTimer activities={activityList} />
         </section>
-          
 
         <section className="mt-8 rounded-lg border p-4">
           <h2 className="mb-4 text-lg font-medium">
@@ -69,6 +90,17 @@ export default async function HomePage() {
           <ActivityList
             activities={activityList}
             hasError={activitiesError !== null}
+          />
+        </section>
+
+        <section className="mt-6 rounded-lg border p-4">
+          <h2 className="mb-4 text-lg font-medium">
+            Recent sessions
+          </h2>
+
+          <TimeBlockList
+            timeBlocks={timeBlockList}
+            hasError={timeBlocksError !== null}
           />
         </section>
       </div>
