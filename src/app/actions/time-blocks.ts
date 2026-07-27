@@ -11,64 +11,22 @@ import type {
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export async function createTimeBlock(
-  input: CreateTimeBlockInput,
+type ValidatedTimeBlockInput = {
+  activityId: string;
+  startedAtMilliseconds: number;
+  endedAtMilliseconds: number;
+  durationSeconds: number;
+};
+
+async function persistTimeBlock(
+  input: ValidatedTimeBlockInput,
 ): Promise<CreateTimeBlockResult> {
   const {
     activityId,
-    startedAt,
-    endedAt,
+    startedAtMilliseconds,
+    endedAtMilliseconds,
     durationSeconds,
   } = input;
-
-  if (!UUID_PATTERN.test(activityId)) {
-    return {
-      status: "error",
-      message: "The selected activity is invalid.",
-    };
-  }
-
-  const startedAtMilliseconds = Date.parse(startedAt);
-  const endedAtMilliseconds = Date.parse(endedAt);
-
-  if (
-    !Number.isFinite(startedAtMilliseconds) ||
-    !Number.isFinite(endedAtMilliseconds)
-  ) {
-    return {
-      status: "error",
-      message: "The timer dates are invalid.",
-    };
-  }
-
-  if (endedAtMilliseconds <= startedAtMilliseconds) {
-    return {
-      status: "error",
-      message: "The timer end must be after its start.",
-    };
-  }
-
-  if (
-    !Number.isInteger(durationSeconds) ||
-    durationSeconds <= 0
-  ) {
-    return {
-      status: "error",
-      message: "The tracked duration must be positive.",
-    };
-  }
-
-  const wallClockSeconds = Math.floor(
-    (endedAtMilliseconds - startedAtMilliseconds) / 1000,
-  );
-
-  if (durationSeconds > wallClockSeconds) {
-    return {
-      status: "error",
-      message:
-        "The tracked duration cannot exceed the session time range.",
-    };
-  }
 
   const supabase = await createClient();
 
@@ -151,4 +109,71 @@ export async function createTimeBlock(
     status: "success",
     message: "Time session saved.",
   };
+}
+
+export async function createTimeBlock(
+  input: CreateTimeBlockInput,
+): Promise<CreateTimeBlockResult> {
+  const {
+    activityId,
+    startedAt,
+    endedAt,
+    durationSeconds,
+  } = input;
+
+  if (!UUID_PATTERN.test(activityId)) {
+    return {
+      status: "error",
+      message: "The selected activity is invalid.",
+    };
+  }
+
+  const startedAtMilliseconds = Date.parse(startedAt);
+  const endedAtMilliseconds = Date.parse(endedAt);
+
+  if (
+    !Number.isFinite(startedAtMilliseconds) ||
+    !Number.isFinite(endedAtMilliseconds)
+  ) {
+    return {
+      status: "error",
+      message: "The timer dates are invalid.",
+    };
+  }
+
+  if (endedAtMilliseconds <= startedAtMilliseconds) {
+    return {
+      status: "error",
+      message: "The timer end must be after its start.",
+    };
+  }
+
+  if (
+    !Number.isInteger(durationSeconds) ||
+    durationSeconds <= 0
+  ) {
+    return {
+      status: "error",
+      message: "The tracked duration must be positive.",
+    };
+  }
+
+  const wallClockSeconds = Math.floor(
+    (endedAtMilliseconds - startedAtMilliseconds) / 1000,
+  );
+
+  if (durationSeconds > wallClockSeconds) {
+    return {
+      status: "error",
+      message:
+        "The tracked duration cannot exceed the session time range.",
+    };
+  }
+
+  return persistTimeBlock({
+    activityId,
+    startedAtMilliseconds,
+    endedAtMilliseconds,
+    durationSeconds,
+  });
 }
