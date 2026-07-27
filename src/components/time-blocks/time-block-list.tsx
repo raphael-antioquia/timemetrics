@@ -1,3 +1,5 @@
+import { formatDuration } from "@/lib/time/format-duration";
+
 type TimeBlockListItem = {
   id: string;
   started_at: string;
@@ -12,18 +14,6 @@ type TimeBlockListProps = {
   timeBlocks: TimeBlockListItem[];
   hasError: boolean;
 };
-
-function formatDuration(totalSeconds: number): string {
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor(
-    (totalSeconds % 3600) / 60,
-  );
-  const seconds = totalSeconds % 60;
-
-  return [hours, minutes, seconds]
-    .map((unit) => String(unit).padStart(2, "0"))
-    .join(":");
-}
 
 export function TimeBlockList({
   timeBlocks,
@@ -59,7 +49,7 @@ export function TimeBlockList({
               </p>
 
               <p className="text-sm text-gray-600">
-                {/* TODO(#YOUR_ISSUE_NUMBER): Format in the user's local timezone. */}
+                {/* TODO(#42): Format timestamps using the user's local timezone. */}
                 {new Date(
                   timeBlock.started_at,
                 ).toLocaleString()}
