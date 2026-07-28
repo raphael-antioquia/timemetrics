@@ -4,12 +4,16 @@ import * as Sentry from "@sentry/nextjs";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type {
+  CreateManualTimeBlockInput,
   CreateTimeBlockInput,
   CreateTimeBlockResult,
 } from "./time-block-state";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const MAX_FUTURE_CLOCK_SKEW_MILLISECONDS =
+  5 * 60 * 1000;
 
 type ValidatedTimeBlockInput = {
   activityId: string;
@@ -149,6 +153,16 @@ export async function createTimeBlock(
   }
 
   if (
+    endedAtMilliseconds >
+    Date.now() + MAX_FUTURE_CLOCK_SKEW_MILLISECONDS
+  ) {
+    return {
+      status: "error",
+      message: "The timer end time cannot be in the future.",
+    };
+  }
+
+  if (
     !Number.isInteger(durationSeconds) ||
     durationSeconds <= 0
   ) {
@@ -167,6 +181,74 @@ export async function createTimeBlock(
       status: "error",
       message:
         "The tracked duration cannot exceed the session time range.",
+    };
+  }
+
+  return persistTimeBlock({
+    activityId,
+    startedAtMilliseconds,
+    endedAtMilliseconds,
+    durationSeconds,
+  });
+}
+
+export async function createManualTimeBlock(
+  input: CreateManualTimeBlockInput,
+): Promise<CreateTimeBlockResult> {
+  const {
+    activityId,
+    startedAt,
+    endedAt,
+  } = input;
+
+  if (!UUID_PATTERN.test(activityId)) {
+    return {
+      status: "error",
+      message: "The selected activity is invalid.",
+    };
+  }
+
+  const startedAtMilliseconds = Date.parse(startedAt);
+  const endedAtMilliseconds = Date.parse(endedAt);
+
+  if (
+    !Number.isFinite(startedAtMilliseconds) ||
+    !Number.isFinite(endedAtMilliseconds)
+  ) {
+    return {
+      status: "error",
+      message: "The session dates are invalid.",
+    };
+  }
+
+  if (endedAtMilliseconds <= startedAtMilliseconds) {
+    return {
+      status: "error",
+      message: "The session end must be after its start.",
+    };
+  }
+
+  if (
+    endedAtMilliseconds >
+    Date.now() + MAX_FUTURE_CLOCK_SKEW_MILLISECONDS
+  ) {
+    return {
+      status: "error",
+      message:
+        "The session end time cannot be in the future.",
+    };
+  }
+
+  const durationSeconds = Math.floor(
+    (endedAtMilliseconds - startedAtMilliseconds) /
+      1000,
+  );
+
+  if (durationSeconds < 1) {
+    return {
+      status: "error",
+      message:
+        "The session must be at least one second long.",
     };
   }
 

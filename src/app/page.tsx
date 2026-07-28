@@ -5,6 +5,7 @@ import { TimeBlockList } from "@/components/time-blocks/time-block-list";
 import { ActivityTimer } from "@/components/timer/activity-timer";
 import { createClient } from "@/lib/supabase/server";
 import { formatDuration } from "@/lib/time/format-duration";
+import { ManualTimeBlockForm } from "@/components/time-blocks/manual-time-block-form";
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -98,6 +99,14 @@ export default async function HomePage() {
           </h2>
 
           <ActivityTimer activities={activityList} />
+        </section>
+        
+        <section className="mt-6 rounded-lg border p-4">
+          <h2 className="mb-4 text-lg font-medium">
+            Log time manually
+          </h2>
+
+          <ManualTimeBlockForm activities={activityList} />
         </section>
 
         <section className="mt-8 rounded-lg border p-4">

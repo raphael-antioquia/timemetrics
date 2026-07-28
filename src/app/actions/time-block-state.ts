@@ -5,6 +5,12 @@ export type CreateTimeBlockInput = {
   durationSeconds: number;
 };
 
+export type CreateManualTimeBlockInput = {
+  activityId: string;
+  startedAt: string;
+  endedAt: string;
+};
+
 export type CreateTimeBlockResult =
   | {
       status: "success";
