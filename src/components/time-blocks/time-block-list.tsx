@@ -1,3 +1,4 @@
+import { DeleteTimeBlockButton } from "@/components/time-blocks/delete-time-block-button";
 import { formatDuration } from "@/lib/time/format-duration";
 
 type TimeBlockListItem = {
@@ -42,7 +43,7 @@ export function TimeBlockList({
           key={timeBlock.id}
           className="rounded-md border px-4 py-3"
         >
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex items-start justify-between gap-4">
             <div>
               <p className="font-medium">
                 {timeBlock.activity?.name ?? "No activity"}
@@ -56,11 +57,13 @@ export function TimeBlockList({
               </p>
             </div>
 
-            <p className="font-mono tabular-nums">
-              {formatDuration(
-                timeBlock.duration_seconds,
-              )}
-            </p>
+            <div className="flex shrink-0 flex-col items-end gap-2">
+              <p className="font-mono tabular-nums">
+                {formatDuration(timeBlock.duration_seconds)}
+              </p>
+
+              <DeleteTimeBlockButton timeBlockId={timeBlock.id} />
+            </div>
           </div>
         </li>
       ))}

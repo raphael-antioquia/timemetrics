@@ -11,7 +11,7 @@ export type CreateManualTimeBlockInput = {
   endedAt: string;
 };
 
-export type CreateTimeBlockResult =
+export type ActionResult =
   | {
       status: "success";
       message: string;
@@ -20,3 +20,5 @@ export type CreateTimeBlockResult =
       status: "error";
       message: string;
     };
+
+export type CreateTimeBlockResult = ActionResult;

@@ -4,6 +4,7 @@ import * as Sentry from "@sentry/nextjs";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type {
+  ActionResult,
   CreateManualTimeBlockInput,
   CreateTimeBlockInput,
   CreateTimeBlockResult,
@@ -258,4 +259,70 @@ export async function createManualTimeBlock(
     endedAtMilliseconds,
     durationSeconds,
   });
+}
+
+export async function deleteTimeBlock(
+  timeBlockId: string,
+): Promise<ActionResult> {
+  if (!UUID_PATTERN.test(timeBlockId)) {
+    return {
+      status: "error",
+      message: "The selected time session is invalid.",
+    };
+  }
+
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return {
+      status: "error",
+      message:
+        "Your session could not be verified. Please sign in again.",
+    };
+  }
+
+  const {
+    data: deletedTimeBlock,
+    error: deleteError,
+  } = await supabase
+    .from("time_blocks")
+    .delete()
+    .eq("id", timeBlockId)
+    .eq("user_id", user.id)
+    .select("id")
+    .maybeSingle();
+
+  if (deleteError) {
+    Sentry.captureException(deleteError, {
+      tags: {
+        operation: "delete_time_block",
+      },
+    });
+
+    return {
+      status: "error",
+      message:
+        "We couldn't delete this time session. Please try again.",
+    };
+  }
+
+  if (!deletedTimeBlock) {
+    return {
+      status: "error",
+      message:
+        "This time session could not be found.",
+    };
+  }
+
+  revalidatePath("/");
+
+  return {
+    status: "success",
+    message: "Time session deleted.",
+  };
 }
