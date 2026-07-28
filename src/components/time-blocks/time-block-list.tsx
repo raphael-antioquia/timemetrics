@@ -1,15 +1,6 @@
 import { DeleteTimeBlockButton } from "@/components/time-blocks/delete-time-block-button";
 import { formatDuration } from "@/lib/time/format-duration";
-
-type TimeBlockListItem = {
-  id: string;
-  started_at: string;
-  ended_at: string;
-  duration_seconds: number;
-  activity: {
-    name: string;
-  } | null;
-};
+import type { TimeBlockListItem } from "@/lib/time/time-block-types";
 
 type TimeBlockListProps = {
   timeBlocks: TimeBlockListItem[];
