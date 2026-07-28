@@ -23,6 +23,59 @@ type ValidatedTimeBlockInput = {
   durationSeconds: number;
 };
 
+type TimeRangeValidationResult =
+  | {
+      status: "success";
+      startedAtMilliseconds: number;
+      endedAtMilliseconds: number;
+    }
+  | {
+      status: "error";
+      message: string;
+    };
+
+function validateTimeRange(
+  startedAt: string,
+  endedAt: string,
+  label: "timer" | "session",
+): TimeRangeValidationResult {
+  const startedAtMilliseconds = Date.parse(startedAt);
+  const endedAtMilliseconds = Date.parse(endedAt);
+
+  if (
+    !Number.isFinite(startedAtMilliseconds) ||
+    !Number.isFinite(endedAtMilliseconds)
+  ) {
+    return {
+      status: "error",
+      message: `The ${label} dates are invalid.`,
+    };
+  }
+
+  if (endedAtMilliseconds <= startedAtMilliseconds) {
+    return {
+      status: "error",
+      message: `The ${label} end must be after its start.`,
+    };
+  }
+
+  if (
+    endedAtMilliseconds >
+    Date.now() + MAX_FUTURE_CLOCK_SKEW_MILLISECONDS
+  ) {
+    return {
+      status: "error",
+      message: `The ${label} end time cannot be in the future.`,
+    };
+  }
+
+  return {
+    status: "success",
+    startedAtMilliseconds,
+    endedAtMilliseconds,
+  };
+}
+
 async function persistTimeBlock(
   input: ValidatedTimeBlockInput,
 ): Promise<CreateTimeBlockResult> {
@@ -133,35 +186,20 @@ export async function createTimeBlock(
     };
   }
 
-  const startedAtMilliseconds = Date.parse(startedAt);
-  const endedAtMilliseconds = Date.parse(endedAt);
+  const timeRangeValidation = validateTimeRange(
+    startedAt,
+    endedAt,
+    "timer",
+  );
 
-  if (
-    !Number.isFinite(startedAtMilliseconds) ||
-    !Number.isFinite(endedAtMilliseconds)
-  ) {
-    return {
-      status: "error",
-      message: "The timer dates are invalid.",
-    };
+  if (timeRangeValidation.status === "error") {
+    return timeRangeValidation;
   }
 
-  if (endedAtMilliseconds <= startedAtMilliseconds) {
-    return {
-      status: "error",
-      message: "The timer end must be after its start.",
-    };
-  }
-
-  if (
-    endedAtMilliseconds >
-    Date.now() + MAX_FUTURE_CLOCK_SKEW_MILLISECONDS
-  ) {
-    return {
-      status: "error",
-      message: "The timer end time cannot be in the future.",
-    };
-  }
+  const {
+    startedAtMilliseconds,
+    endedAtMilliseconds,
+  } = timeRangeValidation;
 
   if (
     !Number.isInteger(durationSeconds) ||
@@ -209,36 +247,20 @@ export async function createManualTimeBlock(
     };
   }
 
-  const startedAtMilliseconds = Date.parse(startedAt);
-  const endedAtMilliseconds = Date.parse(endedAt);
+  const timeRangeValidation = validateTimeRange(
+    startedAt,
+    endedAt,
+    "session",
+  );
 
-  if (
-    !Number.isFinite(startedAtMilliseconds) ||
-    !Number.isFinite(endedAtMilliseconds)
-  ) {
-    return {
-      status: "error",
-      message: "The session dates are invalid.",
-    };
+  if (timeRangeValidation.status === "error") {
+    return timeRangeValidation;
   }
 
-  if (endedAtMilliseconds <= startedAtMilliseconds) {
-    return {
-      status: "error",
-      message: "The session end must be after its start.",
-    };
-  }
-
-  if (
-    endedAtMilliseconds >
-    Date.now() + MAX_FUTURE_CLOCK_SKEW_MILLISECONDS
-  ) {
-    return {
-      status: "error",
-      message:
-        "The session end time cannot be in the future.",
-    };
-  }
+  const {
+    startedAtMilliseconds,
+    endedAtMilliseconds,
+  } = timeRangeValidation;
 
   const durationSeconds = Math.floor(
     (endedAtMilliseconds - startedAtMilliseconds) /
