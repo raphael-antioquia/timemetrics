@@ -342,6 +342,7 @@ export async function deleteTimeBlock(
   }
 
   revalidatePath("/");
+  revalidatePath("/history");
 
   return {
     status: "success",

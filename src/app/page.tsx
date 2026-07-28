@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ActivityList } from "@/components/activities/activity-list";
 import { CreateActivityForm } from "@/components/activities/create-activity-form";
@@ -100,7 +101,7 @@ export default async function HomePage() {
 
           <ActivityTimer activities={activityList} />
         </section>
-        
+
         <section className="mt-6 rounded-lg border p-4">
           <h2 className="mb-4 text-lg font-medium">
             Log time manually
@@ -148,9 +149,18 @@ export default async function HomePage() {
         </section>
 
         <section className="mt-6 rounded-lg border p-4">
-          <h2 className="mb-4 text-lg font-medium">
-            Recent sessions
-          </h2>
+          <div className="mb-4 flex items-center justify-between gap-4">
+            <h2 className="text-lg font-medium">
+              Recent sessions
+            </h2>
+
+            <Link
+              href="/history"
+              className="text-sm font-medium text-muted-foreground hover:text-foreground"
+            >
+              View history
+            </Link>
+          </div>
 
           <TimeBlockList
             timeBlocks={timeBlockList}
