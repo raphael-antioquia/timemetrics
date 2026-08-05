@@ -1,8 +1,11 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useId, useRef, useState } from "react";
 import { createActivity } from "@/app/actions/activities";
 import { initialCreateActivityState } from "@/app/actions/activity-state";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export function CreateActivityForm() {
   const [state, formAction, isPending] = useActionState(
@@ -10,40 +13,54 @@ export function CreateActivityForm() {
     initialCreateActivityState,
   );
 
-  return (
-    <form action={formAction} className="space-y-3">
-      <div className="space-y-1">
-        <label htmlFor="activity-name" className="block text-sm font-medium">
-          Activity name
-        </label>
+  const [name, setName] = useState("");
+  const wasPendingRef = useRef(false);
+  const feedbackId = useId();
 
-        <input
-          key={state.status === "success" ? "reset" : "active"}
+  useEffect(() => {
+    const submissionFinished = wasPendingRef.current && !isPending;
+
+    if (submissionFinished && state.status === "success") {
+      setName("");
+    }
+
+    wasPendingRef.current = isPending;
+  }, [isPending, state.status]);
+
+  return (
+    <form action={formAction} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="activity-name">Activity name</Label>
+
+        <Input
           id="activity-name"
           name="name"
           type="text"
-          defaultValue=""
+          value={name}
+          onChange={(event) => setName(event.target.value)}
           maxLength={100}
           required
           disabled={isPending}
           placeholder="e.g. TimeMetrics development"
-          className="w-full rounded-md border px-3 py-2 disabled:opacity-50"
+          aria-invalid={state.status === "error"}
+          aria-describedby={
+            state.status !== "idle" ? feedbackId : undefined
+          }
         />
       </div>
 
-      <button
-        type="submit"
-        disabled={isPending}
-        className="rounded-md bg-black px-4 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50"
-      >
+      <Button type="submit" disabled={isPending}>
         {isPending ? "Creating..." : "Create activity"}
-      </button>
+      </Button>
 
       {state.status !== "idle" && (
         <p
+          id={feedbackId}
           role={state.status === "error" ? "alert" : "status"}
           className={
-            state.status === "error" ? "text-sm text-red-600" : "text-sm text-green-600"
+            state.status === "error"
+              ? "text-destructive text-sm"
+              : "text-sm text-emerald-600"
           }
         >
           {state.message}
