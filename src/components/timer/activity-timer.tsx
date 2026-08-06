@@ -8,6 +8,7 @@ import type {
 } from "@/app/actions/time-block-state";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
 
 type TimerStatus = "idle" | "running" | "paused";
 
@@ -260,8 +261,7 @@ export function ActivityTimer({
           Activity
         </Label>
 
-        {/* Mirrors src/components/ui/input.tsx styling, excluding file and placeholder variants. */}
-        <select
+        <NativeSelect
           id="timer-activity"
           value={selectedActivityId}
           onChange={(event) =>
@@ -277,7 +277,6 @@ export function ActivityTimer({
               ? "timer-activity-help"
               : undefined
           }
-          className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40"
         >
           <option value="">
             Select an activity
@@ -291,7 +290,7 @@ export function ActivityTimer({
               {activity.name}
             </option>
           ))}
-        </select>
+        </NativeSelect>
 
         {!hasActivities && (
           <p
@@ -319,7 +318,7 @@ export function ActivityTimer({
           {formatElapsed(elapsedSeconds)}
         </div>
       </div>
-      
+
       <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
         {status === "idle" && (
           <Button
