@@ -6,6 +6,8 @@ import type {
   CreateTimeBlockInput,
   CreateTimeBlockResult,
 } from "@/app/actions/time-block-state";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 
 type TimerStatus = "idle" | "running" | "paused";
 
@@ -95,6 +97,8 @@ export function ActivityTimer({
   const elapsedSeconds = Math.floor(
     elapsedMilliseconds / 1000,
   );
+
+  const hasActivities = activities.length > 0;
 
   function resetTimer(resetAt: number) {
     setSelectedActivityId("");
@@ -247,80 +251,131 @@ export function ActivityTimer({
   }
 
   return (
-    <div className="flex flex-col items-center gap-4 rounded-lg border p-6">
-      <select
-        value={selectedActivityId}
-        onChange={(event) =>
-          setSelectedActivityId(event.target.value)
-        }
-        disabled={status !== "idle" || isSaving}
-        className="w-full rounded-md border px-3 py-2 disabled:opacity-50"
-      >
-        <option value="">Select an activity</option>
+    <div
+      aria-busy={isSaving}
+      className="space-y-6 rounded-lg border p-6"
+    >
+      <div className="space-y-2">
+        <Label htmlFor="timer-activity">
+          Activity
+        </Label>
 
-        {activities.map((activity) => (
-          <option
-            key={activity.id}
-            value={activity.id}
-          >
-            {activity.name}
+        {/* Mirrors src/components/ui/input.tsx styling, excluding file and placeholder variants. */}
+        <select
+          id="timer-activity"
+          value={selectedActivityId}
+          onChange={(event) =>
+            setSelectedActivityId(event.target.value)
+          }
+          disabled={
+            !hasActivities ||
+            status !== "idle" ||
+            isSaving
+          }
+          aria-describedby={
+            !hasActivities
+              ? "timer-activity-help"
+              : undefined
+          }
+          className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40"
+        >
+          <option value="">
+            Select an activity
           </option>
-        ))}
-      </select>
 
-      <div className="font-mono text-4xl tabular-nums">
-        {formatElapsed(elapsedSeconds)}
+          {activities.map((activity) => (
+            <option
+              key={activity.id}
+              value={activity.id}
+            >
+              {activity.name}
+            </option>
+          ))}
+        </select>
+
+        {!hasActivities && (
+          <p
+            id="timer-activity-help"
+            className="text-muted-foreground text-sm"
+          >
+            Create an activity before starting a timer.
+          </p>
+        )}
       </div>
 
-      <div className="flex gap-2">
+      <div className="space-y-1 text-center">
+        <p
+          id="elapsed-time-label"
+          className="text-muted-foreground text-sm"
+        >
+          Elapsed time
+        </p>
+
+        <div
+          role="timer"
+          aria-labelledby="elapsed-time-label"
+          className="font-mono text-5xl font-semibold tracking-tight tabular-nums sm:text-6xl"
+        >
+          {formatElapsed(elapsedSeconds)}
+        </div>
+      </div>
+      
+      <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
         {status === "idle" && (
-          <button
+          <Button
             type="button"
             onClick={handleStart}
             disabled={
               !selectedActivityId || isSaving
             }
-            className="rounded-md bg-black px-4 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full sm:w-auto"
           >
             Start
-          </button>
+          </Button>
         )}
 
         {status === "running" && (
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={handlePause}
             disabled={isSaving}
-            className="rounded-md border px-4 py-2 disabled:opacity-50"
+            className="w-full sm:w-auto"
           >
             Pause
-          </button>
+          </Button>
         )}
 
         {status === "paused" && (
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={handleResume}
             disabled={isSaving}
-            className="rounded-md border px-4 py-2 disabled:opacity-50"
+            className="w-full sm:w-auto"
           >
             Resume
-          </button>
+          </Button>
         )}
 
         {status !== "idle" && (
-          <button
+          <Button
             type="button"
+            variant={
+              pendingTimeBlock
+                ? "default"
+                : "destructive"
+            }
             onClick={() => void handleStop()}
             disabled={isSaving}
-            className="rounded-md bg-red-600 px-4 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full sm:w-auto"
           >
             {isSaving
               ? "Saving..."
               : pendingTimeBlock
                 ? "Retry save"
                 : "Stop"}
-          </button>
+          </Button>
         )}
       </div>
 
@@ -333,8 +388,8 @@ export function ActivityTimer({
           }
           className={
             saveResult.status === "error"
-              ? "text-sm text-red-600"
-              : "text-sm text-green-600"
+              ? "text-destructive text-center text-sm"
+              : "text-center text-sm text-emerald-600 dark:text-emerald-400"
           }
         >
           {saveResult.message}
