@@ -3,6 +3,9 @@
 import { useState, type FormEvent } from "react";
 import { createManualTimeBlock } from "@/app/actions/time-blocks";
 import type { CreateTimeBlockResult } from "@/app/actions/time-block-state";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 type Activity = {
   id: string;
@@ -20,7 +23,6 @@ export function ManualTimeBlockForm({
   const [startedAtLocal, setStartedAtLocal] = useState("");
   const [endedAtLocal, setEndedAtLocal] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-
   const [result, setResult] =
     useState<CreateTimeBlockResult | null>(null);
 
@@ -77,16 +79,15 @@ export function ManualTimeBlockForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-4"
+      aria-busy={isSaving}
+      className="space-y-5"
     >
-      <div>
-        <label
-          htmlFor="manual-activity"
-          className="mb-1 block text-sm font-medium"
-        >
+      <div className="space-y-2">
+        <Label htmlFor="manual-activity">
           Activity
-        </label>
+        </Label>
 
+        {/* Mirrors Input styling, excluding file and placeholder variants. */}
         <select
           id="manual-activity"
           value={activityId}
@@ -95,9 +96,16 @@ export function ManualTimeBlockForm({
           }
           required
           disabled={!hasActivities || isSaving}
-          className="w-full rounded-md border px-3 py-2 disabled:opacity-50"
+          aria-describedby={
+            !hasActivities
+              ? "manual-activity-help"
+              : undefined
+          }
+          className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40"
         >
-          <option value="">Select an activity</option>
+          <option value="">
+            Select an activity
+          </option>
 
           {activities.map((activity) => (
             <option
@@ -108,18 +116,24 @@ export function ManualTimeBlockForm({
             </option>
           ))}
         </select>
+
+        {!hasActivities && (
+          <p
+            id="manual-activity-help"
+            className="text-muted-foreground text-sm"
+          >
+            Create an activity before logging time.
+          </p>
+        )}
       </div>
 
-      <div>
-        <label
-          htmlFor="manual-started-at"
-          className="mb-1 block text-sm font-medium"
-        >
-          Started at
-        </label>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="manual-started-at">
+            Started at
+          </Label>
 
-        <div className="flex w-full min-w-0 rounded-md border px-3 py-2">
-          <input
+          <Input
             id="manual-started-at"
             type="datetime-local"
             value={startedAtLocal}
@@ -128,21 +142,15 @@ export function ManualTimeBlockForm({
             }
             required
             disabled={isSaving}
-            className="block w-full min-w-0 border-0 bg-transparent p-0"
           />
         </div>
-      </div>
 
-      <div>
-        <label
-          htmlFor="manual-ended-at"
-          className="mb-1 block text-sm font-medium"
-        >
-          Ended at
-        </label>
+        <div className="space-y-2">
+          <Label htmlFor="manual-ended-at">
+            Ended at
+          </Label>
 
-        <div className="flex w-full min-w-0 rounded-md border px-3 py-2">
-          <input
+          <Input
             id="manual-ended-at"
             type="datetime-local"
             value={endedAtLocal}
@@ -151,12 +159,11 @@ export function ManualTimeBlockForm({
             }
             required
             disabled={isSaving}
-            className="block w-full min-w-0 border-0 bg-transparent p-0"
           />
         </div>
       </div>
 
-      <button
+      <Button
         type="submit"
         disabled={
           !hasActivities ||
@@ -165,16 +172,10 @@ export function ManualTimeBlockForm({
           !endedAtLocal ||
           isSaving
         }
-        className="rounded-md bg-black px-4 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50"
+        className="w-full sm:w-auto"
       >
         {isSaving ? "Saving..." : "Save time entry"}
-      </button>
-
-      {!hasActivities && (
-        <p className="text-sm text-gray-600">
-          Create an activity before logging time.
-        </p>
-      )}
+      </Button>
 
       {result && (
         <p
@@ -185,8 +186,8 @@ export function ManualTimeBlockForm({
           }
           className={
             result.status === "error"
-              ? "text-sm text-red-600"
-              : "text-sm text-green-600"
+              ? "text-destructive text-sm"
+              : "text-sm text-emerald-600 dark:text-emerald-400"
           }
         >
           {result.message}
