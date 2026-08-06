@@ -13,7 +13,10 @@ export function TimeBlockList({
 }: TimeBlockListProps) {
   if (hasError) {
     return (
-      <p role="alert" className="text-sm text-red-600">
+      <p
+        role="alert"
+        className="text-destructive text-sm"
+      >
         We couldn&apos;t load your time history.
       </p>
     );
@@ -21,40 +24,45 @@ export function TimeBlockList({
 
   if (timeBlocks.length === 0) {
     return (
-      <p className="text-sm text-gray-600">
+      <p className="text-muted-foreground text-sm">
         You haven&apos;t tracked any sessions yet.
       </p>
     );
   }
 
   return (
-    <ul className="space-y-3">
+    <ul className="divide-y rounded-lg border">
       {timeBlocks.map((timeBlock) => (
         <li
           key={timeBlock.id}
-          className="rounded-md border px-4 py-3"
+          className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
         >
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="font-medium">
-                {timeBlock.activity?.name ?? "No activity"}
-              </p>
+          <div className="min-w-0">
+            <p className="truncate font-medium">
+              {timeBlock.activity?.name ?? "No activity"}
+            </p>
 
-              <p className="text-sm text-gray-600">
-                {/* TODO(#42): Format timestamps using the user's local timezone. */}
-                {new Date(
-                  timeBlock.started_at,
-                ).toLocaleString()}
-              </p>
-            </div>
+            {/* TODO(#42): Format timestamps using the user's local timezone. */}
+            <time
+              dateTime={timeBlock.started_at}
+              className="text-muted-foreground text-sm"
+            >
+              {new Date(
+                timeBlock.started_at,
+              ).toLocaleString()}
+            </time>
+          </div>
 
-            <div className="flex shrink-0 flex-col items-end gap-2">
-              <p className="font-mono tabular-nums">
-                {formatDuration(timeBlock.duration_seconds)}
-              </p>
+          <div className="flex shrink-0 items-center justify-between gap-4 sm:justify-end">
+            <p className="font-mono font-medium tabular-nums">
+              {formatDuration(
+                timeBlock.duration_seconds,
+              )}
+            </p>
 
-              <DeleteTimeBlockButton timeBlockId={timeBlock.id} />
-            </div>
+            <DeleteTimeBlockButton
+              timeBlockId={timeBlock.id}
+            />
           </div>
         </li>
       ))}

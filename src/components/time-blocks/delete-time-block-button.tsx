@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { deleteTimeBlock } from "@/app/actions/time-blocks";
+import { Button } from "@/components/ui/button";
 
 type DeleteTimeBlockButtonProps = {
   timeBlockId: string;
@@ -11,9 +12,10 @@ export function DeleteTimeBlockButton({
   timeBlockId,
 }: DeleteTimeBlockButtonProps) {
   const [isPending, startTransition] = useTransition();
-  const [errorMessage, setErrorMessage] = useState<string | null>(
-    null,
-  );
+  const [errorMessage, setErrorMessage] =
+    useState<string | null>(null);
+
+  const errorId = `delete-time-block-error-${timeBlockId}`;
 
   function handleDelete() {
     const confirmed = window.confirm(
@@ -42,24 +44,30 @@ export function DeleteTimeBlockButton({
   }
 
   return (
-    <div className="text-right">
-      <button
+    <div className="flex flex-col items-end">
+      <Button
         type="button"
+        variant="ghost"
+        size="sm"
         onClick={handleDelete}
         disabled={isPending}
-        className="text-sm font-medium text-red-600 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+        aria-describedby={
+          errorMessage ? errorId : undefined
+        }
+        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
       >
         {isPending ? "Deleting..." : "Delete"}
-      </button>
+      </Button>
 
-      {errorMessage ? (
+      {errorMessage && (
         <p
+          id={errorId}
           role="alert"
-          className="mt-1 max-w-48 text-xs text-red-600"
+          className="text-destructive mt-1 max-w-48 text-right text-xs"
         >
           {errorMessage}
         </p>
-      ) : null}
+      )}
     </div>
   );
 }
