@@ -1,5 +1,3 @@
-// src/components/activities/activity-list.tsx
-
 type ActivityListItem = {
   id: string;
   name: string;
@@ -16,7 +14,10 @@ export function ActivityList({
 }: ActivityListProps) {
   if (hasError) {
     return (
-      <p role="alert" className="text-sm text-red-600">
+      <p
+        role="alert"
+        className="text-destructive text-sm"
+      >
         We couldn&apos;t load your activities.
       </p>
     );
@@ -24,17 +25,22 @@ export function ActivityList({
 
   if (activities.length === 0) {
     return (
-      <p className="text-sm text-gray-600">
+      <p className="text-muted-foreground text-sm">
         You haven&apos;t created any activities yet.
       </p>
     );
   }
 
   return (
-    <ul className="space-y-2">
+    <ul className="divide-y rounded-lg border">
       {activities.map((activity) => (
-        <li key={activity.id} className="rounded-md border px-3 py-2">
-          {activity.name}
+        <li
+          key={activity.id}
+          className="px-4 py-3"
+        >
+          <p className="truncate font-medium">
+            {activity.name}
+          </p>
         </li>
       ))}
     </ul>
