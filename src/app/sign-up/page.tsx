@@ -1,5 +1,15 @@
 import Link from "next/link";
 import { signUp } from "@/app/auth/actions";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 type SignUpPageProps = {
   searchParams: Promise<{
@@ -14,91 +24,106 @@ export default async function SignUpPage({
   const { error, message } = await searchParams;
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md items-center px-6">
-      <div className="w-full">
-        <h1 className="text-3xl font-semibold">Create your account</h1>
-
-        <p className="mt-2 text-sm text-gray-600">
-          Start tracking your focused work.
+    <main className="flex min-h-screen items-center justify-center bg-background px-4 py-8 sm:px-6">
+      <div className="w-full max-w-md">
+        <p className="text-muted-foreground mb-6 text-center text-sm font-medium uppercase tracking-wide">
+          TimeMetrics
         </p>
 
-        <form action={signUp} className="mt-8 space-y-5">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium">
-              Email
-            </label>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl">
+              <h1>Create your account</h1>
+            </CardTitle>
 
-            <input
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              className="mt-1 w-full rounded-md border px-3 py-2"
-            />
-          </div>
+            <CardDescription>
+              Start tracking your focused work.
+            </CardDescription>
+          </CardHeader>
 
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium">
-              Password
-            </label>
+          <CardContent>
+            {error && (
+              <p
+                role="alert"
+                className="text-destructive mb-4 text-sm"
+              >
+                {error}
+              </p>
+            )}
 
-            <input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete="new-password"
-              minLength={8}
-              required
-              className="mt-1 w-full rounded-md border px-3 py-2"
-            />
-          </div>
+            {message && (
+              <p
+                role="status"
+                className="mb-4 text-sm text-emerald-600 dark:text-emerald-400"
+              >
+                {message}
+              </p>
+            )}
 
-          <div>
-            <label
-              htmlFor="confirmPassword"
-              className="block text-sm font-medium"
-            >
-              Confirm password
-            </label>
+            <form action={signUp} className="space-y-5">
+              <div className="space-y-2">
+                <Label htmlFor="email">
+                  Email
+                </Label>
 
-            <input
-              id="confirmPassword"
-              name="confirmPassword"
-              type="password"
-              autoComplete="new-password"
-              minLength={8}
-              required
-              className="mt-1 w-full rounded-md border px-3 py-2"
-            />
-          </div>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                />
+              </div>
 
-          <button
-            type="submit"
-            className="w-full rounded-md bg-black px-4 py-2 text-white"
-          >
-            Sign up
-          </button>
-        </form>
+              <div className="space-y-2">
+                <Label htmlFor="password">
+                  Password
+                </Label>
 
-        {error && (
-          <p role="alert" className="mt-4 text-sm text-red-600">
-            {error}
-          </p>
-        )}
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="new-password"
+                  minLength={8}
+                  required
+                />
+              </div>
 
-        {message && (
-          <p role="status" className="mt-4 text-sm text-green-700">
-            {message}
-          </p>
-        )}
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">
+                  Confirm password
+                </Label>
 
-        <p className="mt-6 text-sm">
-          Already have an account?{" "}
-          <Link href="/sign-in" className="underline">
-            Sign in
-          </Link>
-        </p>
+                <Input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  autoComplete="new-password"
+                  minLength={8}
+                  required
+                />
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full"
+              >
+                Sign up
+              </Button>
+            </form>
+
+            <p className="text-muted-foreground mt-6 text-center text-sm">
+              Already have an account?{" "}
+              <Link
+                href="/sign-in"
+                className="font-medium text-foreground underline-offset-4 hover:underline"
+              >
+                Sign in
+              </Link>
+            </p>
+          </CardContent>
+        </Card>
       </div>
     </main>
   );

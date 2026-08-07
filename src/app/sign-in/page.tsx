@@ -1,5 +1,15 @@
 import Link from "next/link";
 import { signIn } from "@/app/auth/actions";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 type SignInPageProps = {
   searchParams: Promise<{
@@ -13,65 +23,81 @@ export default async function SignInPage({
   const { error } = await searchParams;
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md items-center px-6">
-      <div className="w-full">
-        <h1 className="text-3xl font-semibold">Sign in</h1>
-
-        <p className="mt-2 text-sm text-gray-600">
-          Continue to TimeMetrics.
+    <main className="flex min-h-screen items-center justify-center bg-background px-4 py-8 sm:px-6">
+      <div className="w-full max-w-md">
+        <p className="text-muted-foreground mb-6 text-center text-sm font-medium uppercase tracking-wide">
+          TimeMetrics
         </p>
 
-        <form action={signIn} className="mt-8 space-y-5">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium">
-              Email
-            </label>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl">
+              <h1>Sign in</h1>
+            </CardTitle>
 
-            <input
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              className="mt-1 w-full rounded-md border px-3 py-2"
-            />
-          </div>
+            <CardDescription>
+              Continue to TimeMetrics.
+            </CardDescription>
+          </CardHeader>
 
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium">
-              Password
-            </label>
+          <CardContent>
+            {error && (
+              <p
+                role="alert"
+                className="text-destructive mb-4 text-sm"
+              >
+                {error}
+              </p>
+            )}
 
-            <input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              className="mt-1 w-full rounded-md border px-3 py-2"
-            />
-          </div>
+            <form action={signIn} className="space-y-5">
+              <div className="space-y-2">
+                <Label htmlFor="email">
+                  Email
+                </Label>
 
-          <button
-            type="submit"
-            className="w-full rounded-md bg-black px-4 py-2 text-white"
-          >
-            Sign in
-          </button>
-        </form>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                />
+              </div>
 
-        {error && (
-          <p role="alert" className="mt-4 text-sm text-red-600">
-            {error}
-          </p>
-        )}
+              <div className="space-y-2">
+                <Label htmlFor="password">
+                  Password
+                </Label>
 
-        <p className="mt-6 text-sm">
-          Need an account?{" "}
-          <Link href="/sign-up" className="underline">
-            Sign up
-          </Link>
-        </p>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                />
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full"
+              >
+                Sign in
+              </Button>
+            </form>
+
+            <p className="text-muted-foreground mt-6 text-center text-sm">
+              Need an account?{" "}
+              <Link
+                href="/sign-up"
+                className="font-medium text-foreground underline-offset-4 hover:underline"
+              >
+                Sign up
+              </Link>
+            </p>
+          </CardContent>
+        </Card>
       </div>
     </main>
   );
