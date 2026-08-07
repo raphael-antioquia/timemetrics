@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { TimeBlockHistory } from "@/components/time-blocks/time-block-history";
 import { createClient } from "@/lib/supabase/server";
+import { ArrowLeft } from "lucide-react";
 
 export default async function HistoryPage() {
   const supabase = await createClient();
@@ -33,23 +34,29 @@ export default async function HistoryPage() {
     .limit(100);
 
   return (
-    <main className="min-h-screen bg-background px-6 py-12">
+    <main className="min-h-screen bg-background px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
       <div className="mx-auto max-w-3xl">
-        <header>
+        <header className="space-y-4">
           <Link
             href="/"
-            className="text-sm font-medium text-muted-foreground hover:text-foreground"
+            className="text-muted-foreground inline-flex items-center gap-1.5 text-sm font-medium transition-colors hover:text-foreground"
           >
-            ← Back to dashboard
+            <ArrowLeft
+              aria-hidden="true"
+              className="size-4"
+            />
+            Back to dashboard
           </Link>
 
-          <h1 className="mt-4 text-4xl font-bold tracking-tight">
-            Time history
-          </h1>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              Time history
+            </h1>
 
-          <p className="mt-3 text-muted-foreground">
-            Review your recent focused work by day.
-          </p>
+            <p className="text-muted-foreground mt-2">
+              Review your recent focused work by day.
+            </p>
+          </div>
         </header>
 
         <section className="mt-8">

@@ -74,7 +74,10 @@ export function TimeBlockHistory({
 }: TimeBlockHistoryProps) {
   if (hasError) {
     return (
-      <p role="alert" className="text-sm text-red-600">
+      <p
+        role="alert"
+        className="text-destructive text-sm"
+      >
         We couldn&apos;t load your time history.
       </p>
     );
@@ -82,7 +85,7 @@ export function TimeBlockHistory({
 
   if (timeBlocks.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
+      <p className="text-muted-foreground text-sm">
         You haven&apos;t tracked any sessions yet.
       </p>
     );
@@ -93,51 +96,58 @@ export function TimeBlockHistory({
   return (
     <div className="space-y-8">
       {groups.map((group) => (
-        <section key={group.dateKey}>
-          <div className="flex items-baseline justify-between gap-4 border-b pb-2">
-            <h2 className="text-lg font-semibold">
+        <section
+          key={group.dateKey}
+          aria-labelledby={`history-date-${group.dateKey}`}
+        >
+          <div className="flex flex-col gap-1 border-b pb-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+            <h2
+              id={`history-date-${group.dateKey}`}
+              className="text-lg font-semibold"
+            >
               {group.dateLabel}
             </h2>
 
-            <p className="shrink-0 font-mono text-sm tabular-nums text-muted-foreground">
+            <p className="text-muted-foreground shrink-0 font-mono text-sm tabular-nums">
               Total: {formatDuration(group.totalSeconds)}
             </p>
           </div>
 
-          <ul className="mt-3 space-y-3">
+          <ul className="mt-3 divide-y rounded-lg border">
             {group.timeBlocks.map((timeBlock) => (
               <li
                 key={timeBlock.id}
-                className="rounded-md border px-4 py-3"
+                className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="font-medium">
-                      {timeBlock.activity?.name ??
-                        "No activity"}
-                    </p>
+                <div className="min-w-0">
+                  <p className="truncate font-medium">
+                    {timeBlock.activity?.name ??
+                      "No activity"}
+                  </p>
 
-                    <p className="text-sm text-muted-foreground">
-                      {new Date(
-                        timeBlock.started_at,
-                      ).toLocaleTimeString(undefined, {
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })}
-                    </p>
-                  </div>
+                  <time
+                    dateTime={timeBlock.started_at}
+                    className="text-muted-foreground text-sm"
+                  >
+                    {new Date(
+                      timeBlock.started_at,
+                    ).toLocaleTimeString(undefined, {
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                  </time>
+                </div>
 
-                  <div className="flex shrink-0 flex-col items-end gap-2">
-                    <p className="font-mono tabular-nums">
-                      {formatDuration(
-                        timeBlock.duration_seconds,
-                      )}
-                    </p>
+                <div className="flex shrink-0 items-center justify-between gap-4 sm:justify-end">
+                  <p className="font-mono font-medium tabular-nums">
+                    {formatDuration(
+                      timeBlock.duration_seconds,
+                    )}
+                  </p>
 
-                    <DeleteTimeBlockButton
-                      timeBlockId={timeBlock.id}
-                    />
-                  </div>
+                  <DeleteTimeBlockButton
+                    timeBlockId={timeBlock.id}
+                  />
                 </div>
               </li>
             ))}
