@@ -1,12 +1,19 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+
 import { createManualTimeBlock } from "@/app/actions/time-blocks";
 import type { CreateTimeBlockResult } from "@/app/actions/time-block-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { NativeSelect } from "@/components/ui/native-select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type Activity = {
   id: string;
@@ -20,10 +27,17 @@ type ManualTimeBlockFormProps = {
 export function ManualTimeBlockForm({
   activities,
 }: ManualTimeBlockFormProps) {
-  const [activityId, setActivityId] = useState("");
-  const [startedAtLocal, setStartedAtLocal] = useState("");
-  const [endedAtLocal, setEndedAtLocal] = useState("");
+  const [activityId, setActivityId] =
+    useState<string | null>(null);
+
+  const [startedAtLocal, setStartedAtLocal] =
+    useState("");
+
+  const [endedAtLocal, setEndedAtLocal] =
+    useState("");
+
   const [isSaving, setIsSaving] = useState(false);
+
   const [result, setResult] =
     useState<CreateTimeBlockResult | null>(null);
 
@@ -34,6 +48,15 @@ export function ManualTimeBlockForm({
 
     setResult(null);
 
+    if (!activityId) {
+      setResult({
+        status: "error",
+        message: "Please select an activity.",
+      });
+
+      return;
+    }
+
     const startedAt = new Date(startedAtLocal);
     const endedAt = new Date(endedAtLocal);
 
@@ -43,7 +66,8 @@ export function ManualTimeBlockForm({
     ) {
       setResult({
         status: "error",
-        message: "Please enter valid start and end times.",
+        message:
+          "Please enter valid start and end times.",
       });
 
       return;
@@ -52,11 +76,12 @@ export function ManualTimeBlockForm({
     setIsSaving(true);
 
     try {
-      const actionResult = await createManualTimeBlock({
-        activityId,
-        startedAt: startedAt.toISOString(),
-        endedAt: endedAt.toISOString(),
-      });
+      const actionResult =
+        await createManualTimeBlock({
+          activityId,
+          startedAt: startedAt.toISOString(),
+          endedAt: endedAt.toISOString(),
+        });
 
       setResult(actionResult);
 
@@ -77,6 +102,11 @@ export function ManualTimeBlockForm({
 
   const hasActivities = activities.length > 0;
 
+  const activityOptions = activities.map((activity) => ({
+    value: activity.id,
+    label: activity.name,
+  }));
+
   return (
     <form
       onSubmit={handleSubmit}
@@ -88,33 +118,36 @@ export function ManualTimeBlockForm({
           Activity
         </Label>
 
-        <NativeSelect
-          id="manual-activity"
+        <Select
+          items={activityOptions}
           value={activityId}
-          onChange={(event) =>
-            setActivityId(event.target.value)
-          }
-          required
+          onValueChange={setActivityId}
           disabled={!hasActivities || isSaving}
-          aria-describedby={
-            !hasActivities
-              ? "manual-activity-help"
-              : undefined
-          }
         >
-          <option value="">
-            Select an activity
-          </option>
+          <SelectTrigger
+            id="manual-activity"
+            className="w-full"
+            aria-required="true"
+            aria-describedby={
+              !hasActivities
+                ? "manual-activity-help"
+                : undefined
+            }
+          >
+            <SelectValue placeholder="Select an activity" />
+          </SelectTrigger>
 
-          {activities.map((activity) => (
-            <option
-              key={activity.id}
-              value={activity.id}
-            >
-              {activity.name}
-            </option>
-          ))}
-        </NativeSelect>
+          <SelectContent>
+            {activityOptions.map((activity) => (
+              <SelectItem
+                key={activity.value}
+                value={activity.value}
+              >
+                {activity.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         {!hasActivities && (
           <p

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import { createTimeBlock } from "@/app/actions/time-blocks";
 import type {
   CreateTimeBlockInput,
@@ -8,7 +9,13 @@ import type {
 } from "@/app/actions/time-block-state";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { NativeSelect } from "@/components/ui/native-select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type TimerStatus = "idle" | "running" | "paused";
 
@@ -37,7 +44,7 @@ export function ActivityTimer({
   activities,
 }: ActivityTimerProps) {
   const [selectedActivityId, setSelectedActivityId] =
-    useState("");
+    useState<string | null>(null);
 
   const [status, setStatus] =
     useState<TimerStatus>("idle");
@@ -101,8 +108,13 @@ export function ActivityTimer({
 
   const hasActivities = activities.length > 0;
 
+  const activityOptions = activities.map((activity) => ({
+    value: activity.id,
+    label: activity.name,
+  }));
+
   function resetTimer(resetAt: number) {
-    setSelectedActivityId("");
+    setSelectedActivityId(null);
     setStatus("idle");
     setSessionStartedAt(null);
     setSegmentStartedAt(null);
@@ -252,7 +264,7 @@ export function ActivityTimer({
   }
 
   return (
-   <div
+    <div
       aria-busy={isSaving}
       className="space-y-6"
     >
@@ -261,36 +273,39 @@ export function ActivityTimer({
           Activity
         </Label>
 
-        <NativeSelect
-          id="timer-activity"
+        <Select
+          items={activityOptions}
           value={selectedActivityId}
-          onChange={(event) =>
-            setSelectedActivityId(event.target.value)
-          }
+          onValueChange={setSelectedActivityId}
           disabled={
             !hasActivities ||
             status !== "idle" ||
             isSaving
           }
-          aria-describedby={
-            !hasActivities
-              ? "timer-activity-help"
-              : undefined
-          }
         >
-          <option value="">
-            Select an activity
-          </option>
+          <SelectTrigger
+            id="timer-activity"
+            className="w-full"
+            aria-describedby={
+              !hasActivities
+                ? "timer-activity-help"
+                : undefined
+            }
+          >
+            <SelectValue placeholder="Select an activity" />
+          </SelectTrigger>
 
-          {activities.map((activity) => (
-            <option
-              key={activity.id}
-              value={activity.id}
-            >
-              {activity.name}
-            </option>
-          ))}
-        </NativeSelect>
+          <SelectContent>
+            {activityOptions.map((activity) => (
+              <SelectItem
+                key={activity.value}
+                value={activity.value}
+              >
+                {activity.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         {!hasActivities && (
           <p
