@@ -2,11 +2,18 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ActivityList } from "@/components/activities/activity-list";
 import { CreateActivityForm } from "@/components/activities/create-activity-form";
+import { ManualTimeBlockForm } from "@/components/time-blocks/manual-time-block-form";
 import { TimeBlockList } from "@/components/time-blocks/time-block-list";
 import { ActivityTimer } from "@/components/timer/activity-timer";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
 import { formatDuration } from "@/lib/time/format-duration";
-import { ManualTimeBlockForm } from "@/components/time-blocks/manual-time-block-form";
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -74,99 +81,132 @@ export default async function HomePage() {
     ) ?? 0;
 
   return (
-    <main className="min-h-screen bg-background px-6 py-12">
-      <div className="mx-auto max-w-3xl">
-        <header>
-          <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-            TimeMetrics
-          </p>
+    <main className="min-h-screen bg-background px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+      <div className="mx-auto max-w-5xl">
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-3">
+            <div>
+              <p className="text-muted-foreground text-sm font-medium uppercase tracking-wide">
+                TimeMetrics
+              </p>
 
-          <h1 className="mt-4 text-4xl font-bold tracking-tight">
-            Track your time
-          </h1>
+              <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
+                Track your time
+              </h1>
 
-          <p className="mt-3 text-muted-foreground">
-            Track focused sessions and review your recent work.
-          </p>
+              <p className="text-muted-foreground mt-2">
+                Track focused sessions and review your recent work.
+              </p>
+            </div>
 
-          <p className="mt-4 text-sm text-gray-600">
-            Signed in as {user.email}
-          </p>
-        </header>
+            {todayTimeBlocksError !== null ? (
+              <p
+                role="alert"
+                className="text-destructive text-sm"
+              >
+                We couldn&apos;t load today&apos;s total.
+              </p>
+            ) : (
+              <p className="text-sm">
+                <span className="text-muted-foreground">
+                  Today&apos;s total:
+                </span>{" "}
+                <span className="font-mono font-medium tabular-nums">
+                  {formatDuration(todayTotalSeconds)}
+                </span>
+              </p>
+            )}
 
-        <section className="mt-8 rounded-lg border p-4">
-          <h2 className="mb-4 text-lg font-medium">
-            Track time
-          </h2>
-
-          <ActivityTimer activities={activityList} />
-        </section>
-
-        <section className="mt-6 rounded-lg border p-4">
-          <h2 className="mb-4 text-lg font-medium">
-            Log time manually
-          </h2>
-
-          <ManualTimeBlockForm activities={activityList} />
-        </section>
-
-        <section className="mt-8 rounded-lg border p-4">
-          <h2 className="mb-4 text-lg font-medium">
-            Create an activity
-          </h2>
-
-          <CreateActivityForm />
-        </section>
-
-        <section className="mt-6 rounded-lg border p-4">
-          <h2 className="mb-4 text-lg font-medium">
-            Your activities
-          </h2>
-
-          <ActivityList
-            activities={activityList}
-            hasError={activitiesError !== null}
-          />
-        </section>
-
-        <section className="mt-6 rounded-lg border p-4">
-          <h2 className="text-lg font-medium">
-            Today&apos;s total
-          </h2>
-
-          {todayTimeBlocksError !== null ? (
-            <p
-              role="alert"
-              className="mt-3 text-sm text-red-600"
-            >
-              We couldn&apos;t load today&apos;s total.
+            <p className="text-muted-foreground text-sm">
+              Signed in as {user.email}
             </p>
-          ) : (
-            <p className="mt-3 font-mono text-3xl font-semibold tabular-nums">
-              {formatDuration(todayTotalSeconds)}
-            </p>
-          )}
-        </section>
-
-        <section className="mt-6 rounded-lg border p-4">
-          <div className="mb-4 flex items-center justify-between gap-4">
-            <h2 className="text-lg font-medium">
-              Recent sessions
-            </h2>
-
-            <Link
-              href="/history"
-              className="text-sm font-medium text-muted-foreground hover:text-foreground"
-            >
-              View history
-            </Link>
           </div>
 
-          <TimeBlockList
-            timeBlocks={timeBlockList}
-            hasError={timeBlocksError !== null}
-          />
-        </section>
+          <Link
+            href="/history"
+            className="text-muted-foreground shrink-0 text-sm font-medium transition-colors hover:text-foreground"
+          >
+            View history
+          </Link>
+        </header>
+
+        <div className="mt-8 grid items-start gap-6 lg:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                <h2>Focus timer</h2>
+              </CardTitle>
+
+              <CardDescription>
+                Track a focused work session.
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent>
+              <ActivityTimer activities={activityList} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                <h2>Manual entry</h2>
+              </CardTitle>
+
+              <CardDescription>
+                Log time you tracked outside the timer.
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent>
+              <ManualTimeBlockForm
+                activities={activityList}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                <h2>Activities</h2>
+              </CardTitle>
+
+              <CardDescription>
+                Create and manage what you track.
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent className="space-y-4">
+              <CreateActivityForm />
+
+              <div className="border-t pt-4">
+                <ActivityList
+                  activities={activityList}
+                  hasError={activitiesError !== null}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                <h2>Recent sessions</h2>
+              </CardTitle>
+
+              <CardDescription>
+                Your latest tracked time.
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent>
+              <TimeBlockList
+                timeBlocks={timeBlockList}
+                hasError={timeBlocksError !== null}
+              />
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </main>
   );

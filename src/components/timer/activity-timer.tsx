@@ -252,9 +252,9 @@ export function ActivityTimer({
   }
 
   return (
-    <div
+   <div
       aria-busy={isSaving}
-      className="space-y-6 rounded-lg border p-6"
+      className="space-y-6"
     >
       <div className="space-y-2">
         <Label htmlFor="timer-activity">
