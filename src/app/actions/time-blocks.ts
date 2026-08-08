@@ -117,7 +117,6 @@ async function persistTimeBlock(
         operation: "verify_time_block_activity",
       },
     });
-
     return {
       status: "error",
       message:
@@ -148,12 +147,22 @@ async function persistTimeBlock(
     });
 
   if (insertError) {
+    // 23P01 is the exclusion violation raised by
+    // time_blocks_no_overlap. This is the database
+    // enforcing a known domain rule, not a fault.
+    if (insertError.code === "23P01") {
+      return {
+        status: "error",
+        message:
+          "This time range overlaps an existing session.",
+      };
+    }
+
     Sentry.captureException(insertError, {
       tags: {
         operation: "create_time_block",
       },
     });
-
     return {
       status: "error",
       message:
@@ -325,7 +334,6 @@ export async function deleteTimeBlock(
         operation: "delete_time_block",
       },
     });
-
     return {
       status: "error",
       message:
