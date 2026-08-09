@@ -1,7 +1,7 @@
 import * as Sentry from "@sentry/nextjs";
 import type { AuthError } from "@supabase/supabase-js";
 
-type AuthOperation = "sign_up" | "sign_in" | "confirm_email";
+type AuthOperation = "sign_up" | "sign_in" | "sign_out" | "confirm_email";
 
 export function reportUnexpectedAuthError(
   error: AuthError,

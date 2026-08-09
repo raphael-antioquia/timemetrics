@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
 import { formatDuration } from "@/lib/time/format-duration";
+import { signOut } from "@/app/auth/actions";
+import { Button } from "@/components/ui/button";
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -122,19 +124,27 @@ export default async function HomePage() {
             </p>
           </div>
 
-          <Link
-            href="/history"
-            className="text-muted-foreground shrink-0 text-sm font-medium transition-colors hover:text-foreground"
-          >
-            View history
-          </Link>
+          <div className="flex shrink-0 items-center gap-3">
+            <Link
+              href="/history"
+              className="text-muted-foreground text-sm font-medium transition-colors hover:text-foreground"
+            >
+              View history
+            </Link>
+
+            <form action={signOut}>
+              <Button type="submit" variant="outline" size="sm">
+                Log out
+              </Button>
+            </form>
+          </div>
         </header>
 
         <div className="mt-8 grid items-start gap-6 lg:grid-cols-2">
           <Card>
             <CardHeader>
               <CardTitle>
-                <h2>Focus timer</h2>
+                Focus timer
               </CardTitle>
 
               <CardDescription>
@@ -150,7 +160,7 @@ export default async function HomePage() {
           <Card>
             <CardHeader>
               <CardTitle>
-                <h2>Manual entry</h2>
+                Manual entry
               </CardTitle>
 
               <CardDescription>
@@ -168,7 +178,7 @@ export default async function HomePage() {
           <Card>
             <CardHeader>
               <CardTitle>
-                <h2>Activities</h2>
+                Activities
               </CardTitle>
 
               <CardDescription>
@@ -191,7 +201,7 @@ export default async function HomePage() {
           <Card>
             <CardHeader>
               <CardTitle>
-                <h2>Recent sessions</h2>
+                Recent sessions
               </CardTitle>
 
               <CardDescription>

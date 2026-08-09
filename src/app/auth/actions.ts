@@ -96,3 +96,20 @@ export async function signIn(formData: FormData) {
 
   redirect("/");
 }
+
+export async function signOut() {
+  const supabase = await createClient();
+
+  const { error } = await supabase.auth.signOut({
+    scope: "local",
+  });
+
+  // @supabase/auth-js >= 2.110.2 clears the local session even when
+  // the remote revoke fails for local/global sign-out. Record the
+  // revoke failure, but still redirect because the user is signed out locally.
+  if (error) {
+    reportUnexpectedAuthError(error, "sign_out");
+  }
+
+  redirect("/sign-in");
+}
