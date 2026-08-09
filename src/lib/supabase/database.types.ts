@@ -93,21 +93,18 @@ export type Database = {
           created_at: string
           id: string
           plan_id: Database["public"]["Enums"]["plan"]
-          timezone: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           id: string
           plan_id?: Database["public"]["Enums"]["plan"]
-          timezone?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           id?: string
           plan_id?: Database["public"]["Enums"]["plan"]
-          timezone?: string | null
           updated_at?: string
         }
         Relationships: []
