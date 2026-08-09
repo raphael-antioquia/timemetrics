@@ -165,7 +165,25 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      time_blocks_for_today: {
+        Args: { p_tz: string }
+        Returns: {
+          activity_id: string | null
+          created_at: string
+          duration_seconds: number
+          ended_at: string
+          id: string
+          started_at: string
+          updated_at: string
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "time_blocks"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
     }
     Enums: {
       plan: "free" | "pro"

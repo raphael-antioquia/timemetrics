@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { signOut } from "@/app/auth/actions";
 import { ActivityList } from "@/components/activities/activity-list";
 import { CreateActivityForm } from "@/components/activities/create-activity-form";
 import { ManualTimeBlockForm } from "@/components/time-blocks/manual-time-block-form";
 import { TimeBlockList } from "@/components/time-blocks/time-block-list";
 import { ActivityTimer } from "@/components/timer/activity-timer";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -14,8 +16,7 @@ import {
 } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
 import { formatDuration } from "@/lib/time/format-duration";
-import { signOut } from "@/app/auth/actions";
-import { Button } from "@/components/ui/button";
+import { getUserTimezone } from "@/lib/time/get-user-timezone";
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -28,13 +29,8 @@ export default async function HomePage() {
     redirect("/sign-in");
   }
 
-  // TODO(#2): Calculate day boundaries using the user's timezone.
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-
-  const startOfTomorrow = new Date(startOfToday);
-  startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
-
+  const timezone = await getUserTimezone(user.id);
+  
   const [
     { data: activities, error: activitiesError },
     { data: timeBlocks, error: timeBlocksError },
@@ -64,12 +60,9 @@ export default async function HomePage() {
       .order("started_at", { ascending: false })
       .limit(20),
 
-    supabase
-      .from("time_blocks")
-      .select("duration_seconds")
-      .eq("user_id", user.id)
-      .gte("started_at", startOfToday.toISOString())
-      .lt("started_at", startOfTomorrow.toISOString()),
+    supabase.rpc("time_blocks_for_today", {
+      p_tz: timezone,
+    }),
   ]);
 
   const activityList = activities ?? [];
