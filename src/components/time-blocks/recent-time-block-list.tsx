@@ -50,7 +50,7 @@ export function RecentTimeBlockList({
         <TimeBlockRow
           key={timeBlock.id}
           timeBlock={timeBlock}
-          startedAtFormatter={dateTimeFormatter}
+          timeRangeFormatter={dateTimeFormatter}
         />
       ))}
     </ul>

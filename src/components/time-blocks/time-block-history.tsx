@@ -160,7 +160,7 @@ export function TimeBlockHistory({
               <TimeBlockRow
                 key={timeBlock.id}
                 timeBlock={timeBlock}
-                startedAtFormatter={timeFormatter}
+                timeRangeFormatter={timeFormatter}
               />
             ))}
           </ul>

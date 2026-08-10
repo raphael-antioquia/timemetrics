@@ -4,12 +4,12 @@ import type { TimeBlockListItem } from "@/lib/time/time-block-types";
 
 type TimeBlockRowProps = {
   timeBlock: TimeBlockListItem;
-  startedAtFormatter: Intl.DateTimeFormat;
+  timeRangeFormatter: Intl.DateTimeFormat;
 };
 
 export function TimeBlockRow({
   timeBlock,
-  startedAtFormatter,
+  timeRangeFormatter,
 }: TimeBlockRowProps) {
   return (
     <li className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
@@ -22,8 +22,9 @@ export function TimeBlockRow({
           dateTime={timeBlock.started_at}
           className="text-muted-foreground text-sm"
         >
-          {startedAtFormatter.format(
+          {timeRangeFormatter.formatRange(
             new Date(timeBlock.started_at),
+            new Date(timeBlock.ended_at),
           )}
         </time>
       </div>
