@@ -8,6 +8,7 @@ import type {
   CreateManualTimeBlockInput,
   CreateTimeBlockInput,
   CreateTimeBlockResult,
+  UpdateTimeBlockInput,
 } from "./time-block-state";
 
 const UUID_PATTERN =
@@ -290,6 +291,238 @@ export async function createManualTimeBlock(
     endedAtMilliseconds,
     durationSeconds,
   });
+}
+
+export async function updateTimeBlock(
+  input: UpdateTimeBlockInput,
+): Promise<ActionResult> {
+  const {
+    timeBlockId,
+    activityId,
+    startedAt,
+    endedAt,
+  } = input;
+
+  if (!UUID_PATTERN.test(timeBlockId)) {
+    return {
+      status: "error",
+      message: "The selected time session is invalid.",
+    };
+  }
+
+  if (!UUID_PATTERN.test(activityId)) {
+    return {
+      status: "error",
+      message: "The selected activity is invalid.",
+    };
+  }
+
+  const timeRangeValidation = validateTimeRange(
+    startedAt,
+    endedAt,
+    "session",
+  );
+
+  if (timeRangeValidation.status === "error") {
+    return timeRangeValidation;
+  }
+
+  const {
+    startedAtMilliseconds,
+    endedAtMilliseconds,
+  } = timeRangeValidation;
+
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return {
+      status: "error",
+      message:
+        "Your session could not be verified. Please sign in again.",
+    };
+  }
+
+  const {
+    data: existingTimeBlock,
+    error: timeBlockError,
+  } = await supabase
+    .from("time_blocks")
+    .select(
+      "id, started_at, ended_at, duration_seconds",
+    )
+    .eq("id", timeBlockId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (timeBlockError) {
+    Sentry.captureException(timeBlockError, {
+      tags: {
+        operation: "verify_time_block_update",
+      },
+    });
+
+    return {
+      status: "error",
+      message:
+        "We couldn't verify this time session. Please try again.",
+    };
+  }
+
+  if (!existingTimeBlock) {
+    return {
+      status: "error",
+      message:
+        "This time session could not be found.",
+    };
+  }
+
+  const {
+    data: activity,
+    error: activityError,
+  } = await supabase
+    .from("activities")
+    .select("id")
+    .eq("id", activityId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (activityError) {
+    Sentry.captureException(activityError, {
+      tags: {
+        operation:
+          "verify_time_block_update_activity",
+      },
+    });
+
+    return {
+      status: "error",
+      message:
+        "We couldn't verify the selected activity. Please try again.",
+    };
+  }
+
+  if (!activity) {
+    return {
+      status: "error",
+      message:
+        "The selected activity could not be found.",
+    };
+  }
+
+  const wallClockSeconds = Math.floor(
+    (endedAtMilliseconds -
+      startedAtMilliseconds) /
+      1000,
+  );
+
+  if (wallClockSeconds < 1) {
+    return {
+      status: "error",
+      message:
+        "The session must be at least one second long.",
+    };
+  }
+
+  const oldStartedAtMilliseconds = Date.parse(
+    existingTimeBlock.started_at,
+  );
+
+  const oldEndedAtMilliseconds = Date.parse(
+    existingTimeBlock.ended_at,
+  );
+
+  const oldWallClockSeconds = Math.floor(
+    (oldEndedAtMilliseconds -
+      oldStartedAtMilliseconds) /
+      1000,
+  );
+
+  // A duration meaningfully shorter than the original span indicates
+  // tracked time was reduced by pauses rather than derived from the span.
+  const hadPauses =
+    existingTimeBlock.duration_seconds <
+    oldWallClockSeconds - 1;
+
+  let durationSeconds: number;
+
+  if (!hadPauses) {
+    durationSeconds = wallClockSeconds;
+  } else if (
+    existingTimeBlock.duration_seconds <=
+    wallClockSeconds
+  ) {
+    durationSeconds =
+      existingTimeBlock.duration_seconds;
+  } else {
+    return {
+      status: "error",
+      message:
+        "This session tracked more time than the new range allows.",
+    };
+  }
+
+  const {
+    data: updatedTimeBlock,
+    error: updateError,
+  } = await supabase
+    .from("time_blocks")
+    .update({
+      activity_id: activity.id,
+      started_at: new Date(
+        startedAtMilliseconds,
+      ).toISOString(),
+      ended_at: new Date(
+        endedAtMilliseconds,
+      ).toISOString(),
+      duration_seconds: durationSeconds,
+    })
+    .eq("id", timeBlockId)
+    .eq("user_id", user.id)
+    .select("id")
+    .maybeSingle();
+
+  if (updateError) {
+    if (updateError.code === "23P01") {
+      return {
+        status: "error",
+        message:
+          "This time range overlaps an existing session.",
+      };
+    }
+
+    Sentry.captureException(updateError, {
+      tags: {
+        operation: "update_time_block",
+      },
+    });
+
+    return {
+      status: "error",
+      message:
+        "We couldn't update this time session. Please try again.",
+    };
+  }
+
+  if (!updatedTimeBlock) {
+    return {
+      status: "error",
+      message:
+        "This time session could not be found.",
+    };
+  }
+
+  revalidatePath("/");
+  revalidatePath("/history");
+
+  return {
+    status: "success",
+    message: "Time session updated.",
+  };
 }
 
 export async function deleteTimeBlock(

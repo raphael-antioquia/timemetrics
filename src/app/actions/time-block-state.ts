@@ -11,6 +11,14 @@ export type CreateManualTimeBlockInput = {
   endedAt: string;
 };
 
+
+export type UpdateTimeBlockInput = {
+  timeBlockId: string;
+  activityId: string;
+  startedAt: string;
+  endedAt: string;
+};
+
 export type ActionResult =
   | {
       status: "success";
