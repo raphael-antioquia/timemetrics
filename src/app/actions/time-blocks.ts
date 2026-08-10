@@ -357,3 +357,78 @@ export async function deleteTimeBlock(
     message: "Time session deleted.",
   };
 }
+
+function isAllowedProfileTimezone(
+  candidate: string,
+): boolean {
+  if (
+    /^(UTC|GMT)?[+-]/.test(candidate) ||
+    candidate.startsWith("Etc/")
+  ) {
+    return false;
+  }
+
+  try {
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: candidate,
+    });
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function initializeUserTimezone(
+  timezone: string,
+): Promise<void> {
+  if (!isAllowedProfileTimezone(timezone)) {
+    return;
+  }
+
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError) {
+    Sentry.captureException(userError, {
+      tags: {
+        operation: "initialize_user_timezone",
+      },
+    });
+
+    return;
+  }
+
+  if (!user) {
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({ timezone })
+    .eq("id", user.id)
+    .eq("timezone", "UTC")
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    Sentry.captureException(error, {
+      tags: {
+        operation: "initialize_user_timezone",
+      },
+    });
+
+    return;
+  }
+
+  // Another request may already have initialized it.
+  if (!data) {
+    return;
+  }
+
+  revalidatePath("/");
+}

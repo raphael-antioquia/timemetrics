@@ -17,6 +17,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { formatDuration } from "@/lib/time/format-duration";
 import { getUserTimezone } from "@/lib/time/get-user-timezone";
+import { TimezoneInitializer } from "@/components/timezone-initializer";
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -77,6 +78,7 @@ export default async function HomePage() {
 
   return (
     <main className="min-h-screen bg-background px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+      {timezone === "UTC" && <TimezoneInitializer />}
       <div className="mx-auto max-w-5xl">
         <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-3">
