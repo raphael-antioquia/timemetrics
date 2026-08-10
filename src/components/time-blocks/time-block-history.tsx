@@ -1,5 +1,3 @@
-"use client";
-
 import { formatDuration } from "@/lib/time/format-duration";
 import type { TimeBlockListItem } from "@/lib/time/time-block-types";
 import { TimeBlockRow } from "@/components/time-blocks/time-block-row";
