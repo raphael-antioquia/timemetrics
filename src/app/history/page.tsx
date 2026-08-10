@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { TimeBlockHistory } from "@/components/time-blocks/time-block-history";
 import { createClient } from "@/lib/supabase/server";
-import { ArrowLeft } from "lucide-react";
+import { getUserTimezone } from "@/lib/time/get-user-timezone";
 
 export default async function HistoryPage() {
   const supabase = await createClient();
@@ -32,7 +33,9 @@ export default async function HistoryPage() {
     .eq("user_id", user.id)
     .order("started_at", { ascending: false })
     .limit(100);
-
+  
+  const timezone = await getUserTimezone(user.id);
+    
   return (
     <main className="min-h-screen bg-background px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
       <div className="mx-auto max-w-3xl">
@@ -63,6 +66,7 @@ export default async function HistoryPage() {
           <TimeBlockHistory
             timeBlocks={timeBlocks ?? []}
             hasError={timeBlocksError !== null}
+            timezone={timezone}
           />
         </section>
       </div>

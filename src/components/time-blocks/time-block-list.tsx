@@ -5,11 +5,15 @@ import type { TimeBlockListItem } from "@/lib/time/time-block-types";
 type TimeBlockListProps = {
   timeBlocks: TimeBlockListItem[];
   hasError: boolean;
+  timezone: string;
 };
+
+
 
 export function TimeBlockList({
   timeBlocks,
   hasError,
+  timezone,
 }: TimeBlockListProps) {
   if (hasError) {
     return (
@@ -30,6 +34,17 @@ export function TimeBlockList({
     );
   }
 
+  const dateTimeFormatter = new Intl.DateTimeFormat(
+    "en-US",
+    {
+      timeZone: timezone,
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    },
+  );
+
   return (
     <ul className="divide-y rounded-lg border">
       {timeBlocks.map((timeBlock) => (
@@ -42,14 +57,13 @@ export function TimeBlockList({
               {timeBlock.activity?.name ?? "No activity"}
             </p>
 
-            {/* TODO(#42): Format timestamps using the user's local timezone. */}
             <time
               dateTime={timeBlock.started_at}
               className="text-muted-foreground text-sm"
             >
-              {new Date(
-                timeBlock.started_at,
-              ).toLocaleString()}
+              {dateTimeFormatter.format(
+                new Date(timeBlock.started_at),
+              )}
             </time>
           </div>
 

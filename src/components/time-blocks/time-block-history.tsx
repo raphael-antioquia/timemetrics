@@ -7,6 +7,7 @@ import type { TimeBlockListItem } from "@/lib/time/time-block-types";
 type TimeBlockHistoryProps = {
   timeBlocks: TimeBlockListItem[];
   hasError: boolean;
+  timezone: string;
 };
 
 type TimeBlockGroup = {
@@ -16,30 +17,65 @@ type TimeBlockGroup = {
   timeBlocks: TimeBlockListItem[];
 };
 
-function getLocalDateKey(dateString: string): string {
-  const date = new Date(dateString);
-
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(
-    2,
-    "0",
+function getDateKey(
+  dateString: string,
+  formatter: Intl.DateTimeFormat,
+): string {
+  const parts = formatter.formatToParts(
+    new Date(dateString),
   );
-  const day = String(date.getDate()).padStart(2, "0");
+
+  const year = parts.find(
+    (part) => part.type === "year",
+  )?.value;
+  const month = parts.find(
+    (part) => part.type === "month",
+  )?.value;
+  const day = parts.find(
+    (part) => part.type === "day",
+  )?.value;
+
+  if (!year || !month || !day) {
+    throw new Error(
+      "Failed to format history date key.",
+    );
+  }
 
   return `${year}-${month}-${day}`;
 }
 
 function groupTimeBlocksByDate(
   timeBlocks: TimeBlockListItem[],
+  timezone: string,
 ): TimeBlockGroup[] {
   const groups = new Map<string, TimeBlockGroup>();
+
+  const dateKeyFormatter = new Intl.DateTimeFormat(
+    "en-US",
+    {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    },
+  );
+
+  const dateLabelFormatter =
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
 
   // The database query returns sessions newest-first.
   // Map insertion order therefore keeps date groups newest-first.
   for (const timeBlock of timeBlocks) {
     const date = new Date(timeBlock.started_at);
-    const dateKey = getLocalDateKey(
+    const dateKey = getDateKey(
       timeBlock.started_at,
+      dateKeyFormatter,
     );
 
     const existingGroup = groups.get(dateKey);
@@ -54,12 +90,7 @@ function groupTimeBlocksByDate(
 
     groups.set(dateKey, {
       dateKey,
-      dateLabel: date.toLocaleDateString(undefined, {
-        weekday: "long",
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-      }),
+      dateLabel: dateLabelFormatter.format(date),
       totalSeconds: timeBlock.duration_seconds,
       timeBlocks: [timeBlock],
     });
@@ -71,13 +102,11 @@ function groupTimeBlocksByDate(
 export function TimeBlockHistory({
   timeBlocks,
   hasError,
+  timezone,
 }: TimeBlockHistoryProps) {
   if (hasError) {
     return (
-      <p
-        role="alert"
-        className="text-destructive text-sm"
-      >
+      <p role="alert" className="text-destructive text-sm">
         We couldn&apos;t load your time history.
       </p>
     );
@@ -91,7 +120,19 @@ export function TimeBlockHistory({
     );
   }
 
-  const groups = groupTimeBlocksByDate(timeBlocks);
+  const timeFormatter = new Intl.DateTimeFormat(
+    "en-US",
+    {
+      timeZone: timezone,
+      hour: "numeric",
+      minute: "2-digit",
+    },
+  );
+
+  const groups = groupTimeBlocksByDate(
+    timeBlocks,
+    timezone,
+  );
 
   return (
     <div className="space-y-8">
@@ -100,7 +141,7 @@ export function TimeBlockHistory({
           key={group.dateKey}
           aria-labelledby={`history-date-${group.dateKey}`}
         >
-          <div className="flex flex-col gap-1 border-b pb-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+          <div className="flex items-center justify-between gap-4">
             <h2
               id={`history-date-${group.dateKey}`}
               className="text-lg font-semibold"
@@ -129,12 +170,9 @@ export function TimeBlockHistory({
                     dateTime={timeBlock.started_at}
                     className="text-muted-foreground text-sm"
                   >
-                    {new Date(
-                      timeBlock.started_at,
-                    ).toLocaleTimeString(undefined, {
-                      hour: "numeric",
-                      minute: "2-digit",
-                    })}
+                    {timeFormatter.format(
+                      new Date(timeBlock.started_at),
+                    )}
                   </time>
                 </div>
 
