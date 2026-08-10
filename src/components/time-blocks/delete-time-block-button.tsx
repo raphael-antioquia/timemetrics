@@ -1,7 +1,19 @@
 "use client";
 
 import { useState, useTransition } from "react";
+
 import { deleteTimeBlock } from "@/app/actions/time-blocks";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 
 type DeleteTimeBlockButtonProps = {
@@ -11,53 +23,89 @@ type DeleteTimeBlockButtonProps = {
 export function DeleteTimeBlockButton({
   timeBlockId,
 }: DeleteTimeBlockButtonProps) {
-  const [isPending, startTransition] = useTransition();
+  const [open, setOpen] = useState(false);
+  const [isPending, startTransition] =
+    useTransition();
   const [errorMessage, setErrorMessage] =
     useState<string | null>(null);
 
   const errorId = `delete-time-block-error-${timeBlockId}`;
 
-  function handleDelete() {
-    const confirmed = window.confirm(
-      "Delete this time session? This cannot be undone.",
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    setErrorMessage(null);
+  function handleConfirm() {
+    setOpen(false);
 
     startTransition(async () => {
       try {
-        const result = await deleteTimeBlock(timeBlockId);
+        const result =
+          await deleteTimeBlock(timeBlockId);
 
         if (result.status === "error") {
           setErrorMessage(result.message);
         }
       } catch {
         setErrorMessage(
-          "We couldn't reach the server. Please try again.",
+          "Couldn't delete. Try again.",
         );
       }
     });
   }
 
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen) {
+      setErrorMessage(null);
+    }
+
+    setOpen(nextOpen);
+  }
+
   return (
-    <div className="flex flex-col items-end">
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        onClick={handleDelete}
-        disabled={isPending}
-        aria-describedby={
-          errorMessage ? errorId : undefined
-        }
-        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+    <div>
+      <AlertDialog
+        open={open}
+        onOpenChange={handleOpenChange}
       >
-        {isPending ? "Deleting..." : "Delete"}
-      </Button>
+        <AlertDialogTrigger
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={isPending}
+              aria-describedby={
+                errorMessage ? errorId : undefined
+              }
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+            />
+          }
+        >
+          {isPending ? "Deleting..." : "Delete"}
+        </AlertDialogTrigger>
+
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete this time session?
+            </AlertDialogTitle>
+
+            <AlertDialogDescription>
+              This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              Cancel
+            </AlertDialogCancel>
+
+            <AlertDialogAction
+              variant="destructive"
+              onClick={handleConfirm}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {errorMessage && (
         <p
