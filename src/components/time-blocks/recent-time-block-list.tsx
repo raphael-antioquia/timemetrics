@@ -20,7 +20,7 @@ export function RecentTimeBlockList({
         role="alert"
         className="text-destructive text-sm"
       >
-        We couldn&apos;t load your time history.
+        We couldn&apos;t load your recent sessions.
       </p>
     );
   }
