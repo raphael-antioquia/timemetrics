@@ -2,7 +2,7 @@ import { DeleteTimeBlockButton } from "@/components/time-blocks/delete-time-bloc
 import { formatDuration } from "@/lib/time/format-duration";
 import type { TimeBlockListItem } from "@/lib/time/time-block-types";
 
-type TimeBlockListProps = {
+type RecentTimeBlockListProps = {
   timeBlocks: TimeBlockListItem[];
   hasError: boolean;
   timezone: string;
@@ -10,11 +10,11 @@ type TimeBlockListProps = {
 
 
 
-export function TimeBlockList({
+export function RecentTimeBlockList({
   timeBlocks,
   hasError,
   timezone,
-}: TimeBlockListProps) {
+}: RecentTimeBlockListProps) {
   if (hasError) {
     return (
       <p

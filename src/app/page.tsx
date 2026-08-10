@@ -4,7 +4,7 @@ import { signOut } from "@/app/auth/actions";
 import { ActivityList } from "@/components/activities/activity-list";
 import { CreateActivityForm } from "@/components/activities/create-activity-form";
 import { ManualTimeBlockForm } from "@/components/time-blocks/manual-time-block-form";
-import { TimeBlockList } from "@/components/time-blocks/time-block-list";
+import { RecentTimeBlockList } from "@/components/time-blocks/recent-time-block-list";
 import { ActivityTimer } from "@/components/timer/activity-timer";
 import { Button } from "@/components/ui/button";
 import {
@@ -205,7 +205,7 @@ export default async function HomePage() {
             </CardHeader>
 
             <CardContent>
-              <TimeBlockList
+              <RecentTimeBlockList
                 timeBlocks={timeBlockList}
                 hasError={timeBlocksError !== null}
                 timezone={timezone}
