@@ -54,6 +54,7 @@ export default async function HomePage() {
         ended_at,
         duration_seconds,
         activity:activities (
+          id,
           name
         )
       `)

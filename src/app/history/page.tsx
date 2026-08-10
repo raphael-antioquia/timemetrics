@@ -16,26 +16,29 @@ export default async function HistoryPage() {
     redirect("/sign-in");
   }
 
-  const {
-    data: timeBlocks,
-    error: timeBlocksError,
-  } = await supabase
-    .from("time_blocks")
-    .select(`
-      id,
-      started_at,
-      ended_at,
-      duration_seconds,
-      activity:activities (
-        name
-      )
-    `)
-    .eq("user_id", user.id)
-    .order("started_at", { ascending: false })
-    .limit(100);
-  
-  const timezone = await getUserTimezone(user.id);
-    
+  const [
+    { data: timeBlocks, error: timeBlocksError },
+    timezone,
+  ] = await Promise.all([
+    supabase
+      .from("time_blocks")
+      .select(`
+        id,
+        started_at,
+        ended_at,
+        duration_seconds,
+        activity:activities (
+          id,
+          name
+        )
+      `)
+      .eq("user_id", user.id)
+      .order("started_at", { ascending: false })
+      .limit(100),
+
+    getUserTimezone(user.id),
+  ]);
+
   return (
     <main className="min-h-screen bg-background px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
       <div className="mx-auto max-w-3xl">

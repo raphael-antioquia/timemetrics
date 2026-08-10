@@ -4,6 +4,7 @@ export type TimeBlockListItem = {
   ended_at: string;
   duration_seconds: number;
   activity: {
+    id: string;
     name: string;
   } | null;
 };
