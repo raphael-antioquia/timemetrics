@@ -1,8 +1,8 @@
 "use client";
 
-import { DeleteTimeBlockButton } from "@/components/time-blocks/delete-time-block-button";
 import { formatDuration } from "@/lib/time/format-duration";
 import type { TimeBlockListItem } from "@/lib/time/time-block-types";
+import { TimeBlockRow } from "@/components/time-blocks/time-block-row";
 
 type TimeBlockHistoryProps = {
   timeBlocks: TimeBlockListItem[];
@@ -106,7 +106,10 @@ export function TimeBlockHistory({
 }: TimeBlockHistoryProps) {
   if (hasError) {
     return (
-      <p role="alert" className="text-destructive text-sm">
+      <p
+        role="alert"
+        className="text-destructive text-sm"
+      >
         We couldn&apos;t load your time history.
       </p>
     );
@@ -141,7 +144,7 @@ export function TimeBlockHistory({
           key={group.dateKey}
           aria-labelledby={`history-date-${group.dateKey}`}
         >
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col gap-1 border-b pb-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
             <h2
               id={`history-date-${group.dateKey}`}
               className="text-lg font-semibold"
@@ -156,38 +159,11 @@ export function TimeBlockHistory({
 
           <ul className="mt-3 divide-y rounded-lg border">
             {group.timeBlocks.map((timeBlock) => (
-              <li
+              <TimeBlockRow
                 key={timeBlock.id}
-                className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="min-w-0">
-                  <p className="truncate font-medium">
-                    {timeBlock.activity?.name ??
-                      "No activity"}
-                  </p>
-
-                  <time
-                    dateTime={timeBlock.started_at}
-                    className="text-muted-foreground text-sm"
-                  >
-                    {timeFormatter.format(
-                      new Date(timeBlock.started_at),
-                    )}
-                  </time>
-                </div>
-
-                <div className="flex shrink-0 items-center justify-between gap-4 sm:justify-end">
-                  <p className="font-mono font-medium tabular-nums">
-                    {formatDuration(
-                      timeBlock.duration_seconds,
-                    )}
-                  </p>
-
-                  <DeleteTimeBlockButton
-                    timeBlockId={timeBlock.id}
-                  />
-                </div>
-              </li>
+                timeBlock={timeBlock}
+                startedAtFormatter={timeFormatter}
+              />
             ))}
           </ul>
         </section>
