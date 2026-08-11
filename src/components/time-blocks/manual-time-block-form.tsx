@@ -14,6 +14,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  parseDateTimeLocal,
+} from "@/lib/time/format-datetime-local";
 
 type Activity = {
   id: string;
@@ -57,17 +60,27 @@ export function ManualTimeBlockForm({
       return;
     }
 
-    const startedAt = new Date(startedAtLocal);
-    const endedAt = new Date(endedAtLocal);
+    const startedAt =
+      parseDateTimeLocal(startedAtLocal);
 
-    if (
-      Number.isNaN(startedAt.getTime()) ||
-      Number.isNaN(endedAt.getTime())
-    ) {
+    const endedAt =
+      parseDateTimeLocal(endedAtLocal);
+
+    if (!startedAt || !endedAt) {
       setResult({
         status: "error",
         message:
           "Please enter valid start and end times.",
+      });
+
+      return;
+    }
+
+    if (endedAt.getTime() <= startedAt.getTime()) {
+      setResult({
+        status: "error",
+        message:
+          "The session end must be after its start.",
       });
 
       return;
