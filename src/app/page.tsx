@@ -208,6 +208,7 @@ export default async function HomePage() {
             <CardContent>
               <RecentTimeBlockList
                 timeBlocks={timeBlockList}
+                activities={activityList}
                 hasError={timeBlocksError !== null}
                 timezone={timezone}
               />

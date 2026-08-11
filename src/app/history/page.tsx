@@ -17,9 +17,16 @@ export default async function HistoryPage() {
   }
 
   const [
+    { data: activities },
     { data: timeBlocks, error: timeBlocksError },
     timezone,
   ] = await Promise.all([
+    supabase
+      .from("activities")
+      .select("id, name")
+      .eq("user_id", user.id)
+      .order("name", { ascending: true }),
+
     supabase
       .from("time_blocks")
       .select(`
@@ -68,6 +75,7 @@ export default async function HistoryPage() {
         <section className="mt-8">
           <TimeBlockHistory
             timeBlocks={timeBlocks ?? []}
+            activities={activities ?? []}
             hasError={timeBlocksError !== null}
             timezone={timezone}
           />

@@ -348,40 +348,6 @@ export async function updateTimeBlock(
   }
 
   const {
-    data: existingTimeBlock,
-    error: timeBlockError,
-  } = await supabase
-    .from("time_blocks")
-    .select(
-      "id, started_at, ended_at, duration_seconds",
-    )
-    .eq("id", timeBlockId)
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (timeBlockError) {
-    Sentry.captureException(timeBlockError, {
-      tags: {
-        operation: "verify_time_block_update",
-      },
-    });
-
-    return {
-      status: "error",
-      message:
-        "We couldn't verify this time session. Please try again.",
-    };
-  }
-
-  if (!existingTimeBlock) {
-    return {
-      status: "error",
-      message:
-        "This time session could not be found.",
-    };
-  }
-
-  const {
     data: activity,
     error: activityError,
   } = await supabase
@@ -428,43 +394,7 @@ export async function updateTimeBlock(
     };
   }
 
-  const oldStartedAtMilliseconds = Date.parse(
-    existingTimeBlock.started_at,
-  );
-
-  const oldEndedAtMilliseconds = Date.parse(
-    existingTimeBlock.ended_at,
-  );
-
-  const oldWallClockSeconds = Math.floor(
-    (oldEndedAtMilliseconds -
-      oldStartedAtMilliseconds) /
-      1000,
-  );
-
-  // A duration meaningfully shorter than the original span indicates
-  // tracked time was reduced by pauses rather than derived from the span.
-  const hadPauses =
-    existingTimeBlock.duration_seconds <
-    oldWallClockSeconds - 1;
-
-  let durationSeconds: number;
-
-  if (!hadPauses) {
-    durationSeconds = wallClockSeconds;
-  } else if (
-    existingTimeBlock.duration_seconds <=
-    wallClockSeconds
-  ) {
-    durationSeconds =
-      existingTimeBlock.duration_seconds;
-  } else {
-    return {
-      status: "error",
-      message:
-        "This session tracked more time than the new range allows.",
-    };
-  }
+  const durationSeconds = wallClockSeconds;
 
   const {
     data: updatedTimeBlock,

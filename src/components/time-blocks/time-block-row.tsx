@@ -1,14 +1,22 @@
 import { DeleteTimeBlockButton } from "@/components/time-blocks/delete-time-block-button";
 import { formatDuration } from "@/lib/time/format-duration";
 import type { TimeBlockListItem } from "@/lib/time/time-block-types";
+import { EditTimeBlockDialog } from "@/components/time-blocks/edit-time-block-dialog";
+
+type Activity = {
+  id: string;
+  name: string;
+};
 
 type TimeBlockRowProps = {
   timeBlock: TimeBlockListItem;
+  activities: Activity[];
   timeRangeFormatter: Intl.DateTimeFormat;
 };
 
 export function TimeBlockRow({
   timeBlock,
+  activities,
   timeRangeFormatter,
 }: TimeBlockRowProps) {
   return (
@@ -33,6 +41,10 @@ export function TimeBlockRow({
         <p className="font-mono font-medium tabular-nums">
           {formatDuration(timeBlock.duration_seconds)}
         </p>
+        <EditTimeBlockDialog
+          timeBlock={timeBlock}
+          activities={activities}
+        />
 
         <DeleteTimeBlockButton
           timeBlockId={timeBlock.id}
