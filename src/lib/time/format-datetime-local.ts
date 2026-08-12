@@ -7,6 +7,7 @@ export function formatDateTimeLocal(
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+    second: "2-digit",
     hourCycle: "h23",
   });
 
@@ -24,20 +25,22 @@ export function formatDateTimeLocal(
   const day = getPart("day");
   const hour = getPart("hour");
   const minute = getPart("minute");
+  const second = getPart("second");
 
   if (
     !year ||
     !month ||
     !day ||
     !hour ||
-    !minute
+    !minute ||
+    !second
   ) {
     throw new Error(
       "Failed to format datetime-local value.",
     );
   }
 
-  return `${year}-${month}-${day}T${hour}:${minute}`;
+  return `${year}-${month}-${day}T${hour}:${minute}:${second}`;
 }
 
 export function parseDateTimeLocal(

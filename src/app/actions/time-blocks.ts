@@ -348,6 +348,40 @@ export async function updateTimeBlock(
   }
 
   const {
+    data: existingTimeBlock,
+    error: timeBlockError,
+  } = await supabase
+    .from("time_blocks")
+    .select(
+      "started_at, ended_at, duration_seconds",
+    )
+    .eq("id", timeBlockId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (timeBlockError) {
+    Sentry.captureException(timeBlockError, {
+      tags: {
+        operation: "verify_time_block_update",
+      },
+    });
+
+    return {
+      status: "error",
+      message:
+        "We couldn't verify this time session. Please try again.",
+    };
+  }
+
+  if (!existingTimeBlock) {
+    return {
+      status: "error",
+      message:
+        "This time session could not be found.",
+    };
+  }
+
+  const {
     data: activity,
     error: activityError,
   } = await supabase
@@ -394,7 +428,15 @@ export async function updateTimeBlock(
     };
   }
 
-  const durationSeconds = wallClockSeconds;
+  const rangeChanged =
+    startedAtMilliseconds !==
+      Date.parse(existingTimeBlock.started_at) ||
+    endedAtMilliseconds !==
+      Date.parse(existingTimeBlock.ended_at);
+
+  const durationSeconds = rangeChanged
+    ? wallClockSeconds
+    : existingTimeBlock.duration_seconds;
 
   const {
     data: updatedTimeBlock,

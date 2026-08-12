@@ -118,11 +118,21 @@ export function EditTimeBlockDialog({
       return;
     }
 
+    const originalStartedAtLocal =
+      formatDateTimeLocal(timeBlock.started_at);
+
+    const originalEndedAtLocal =
+      formatDateTimeLocal(timeBlock.ended_at);
+
     const startedAt =
-      parseDateTimeLocal(startedAtLocal);
+      startedAtLocal === originalStartedAtLocal
+        ? new Date(timeBlock.started_at)
+        : parseDateTimeLocal(startedAtLocal);
 
     const endedAt =
-      parseDateTimeLocal(endedAtLocal);
+      endedAtLocal === originalEndedAtLocal
+        ? new Date(timeBlock.ended_at)
+        : parseDateTimeLocal(endedAtLocal);
 
     if (!startedAt || !endedAt) {
       setErrorMessage(
@@ -262,6 +272,7 @@ export function EditTimeBlockDialog({
               <Input
                 id={startedFieldId}
                 type="datetime-local"
+                step="1"
                 value={startedAtLocal}
                 onChange={(event) =>
                   setStartedAtLocal(
@@ -281,6 +292,7 @@ export function EditTimeBlockDialog({
               <Input
                 id={endedFieldId}
                 type="datetime-local"
+                step="1"
                 value={endedAtLocal}
                 onChange={(event) =>
                   setEndedAtLocal(
