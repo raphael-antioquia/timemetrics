@@ -2,8 +2,14 @@ import { formatDuration } from "@/lib/time/format-duration";
 import type { TimeBlockListItem } from "@/lib/time/time-block-types";
 import { TimeBlockRow } from "@/components/time-blocks/time-block-row";
 
+type Activity = {
+  id: string;
+  name: string;
+};
+
 type TimeBlockHistoryProps = {
   timeBlocks: TimeBlockListItem[];
+  activities: Activity[];
   hasError: boolean;
   timezone: string;
 };
@@ -99,6 +105,7 @@ function groupTimeBlocksByDate(
 
 export function TimeBlockHistory({
   timeBlocks,
+  activities,
   hasError,
   timezone,
 }: TimeBlockHistoryProps) {
@@ -160,6 +167,7 @@ export function TimeBlockHistory({
               <TimeBlockRow
                 key={timeBlock.id}
                 timeBlock={timeBlock}
+                activities={activities}
                 timeRangeFormatter={timeFormatter}
               />
             ))}

@@ -1,16 +1,21 @@
 import type { TimeBlockListItem } from "@/lib/time/time-block-types";
 import { TimeBlockRow } from "@/components/time-blocks/time-block-row";
 
+type Activity = {
+  id: string;
+  name: string;
+};
+
 type RecentTimeBlockListProps = {
   timeBlocks: TimeBlockListItem[];
+  activities: Activity[];
   hasError: boolean;
   timezone: string;
 };
 
-
-
 export function RecentTimeBlockList({
   timeBlocks,
+  activities,
   hasError,
   timezone,
 }: RecentTimeBlockListProps) {
@@ -50,6 +55,7 @@ export function RecentTimeBlockList({
         <TimeBlockRow
           key={timeBlock.id}
           timeBlock={timeBlock}
+          activities={activities}
           timeRangeFormatter={dateTimeFormatter}
         />
       ))}
