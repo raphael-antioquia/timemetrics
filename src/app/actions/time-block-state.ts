@@ -1,3 +1,5 @@
+import type { ActionResult } from "@/app/actions/action-result";
+
 export type CreateTimeBlockInput = {
   activityId: string;
   startedAt: string;
@@ -18,15 +20,5 @@ export type UpdateTimeBlockInput = {
   startedAt: string;
   endedAt: string;
 };
-
-export type ActionResult =
-  | {
-      status: "success";
-      message: string;
-    }
-  | {
-      status: "error";
-      message: string;
-    };
 
 export type CreateTimeBlockResult = ActionResult;

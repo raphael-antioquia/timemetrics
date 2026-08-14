@@ -4,13 +4,13 @@ import * as Sentry from "@sentry/nextjs";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type {
-  ActionResult,
   CreateManualTimeBlockInput,
   CreateTimeBlockInput,
   CreateTimeBlockResult,
   UpdateTimeBlockInput,
 } from "./time-block-state";
 import { UUID_PATTERN } from "@/lib/validation/uuid";
+import type { ActionResult } from "@/app/actions/action-result";
 
 const MAX_FUTURE_CLOCK_SKEW_MILLISECONDS =
   5 * 60 * 1000;
