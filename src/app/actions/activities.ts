@@ -3,7 +3,7 @@
 import * as Sentry from "@sentry/nextjs";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import type { CreateActivityState } from "./activity-state";
+import type { CreateActivityState } from "@/app/actions/activity-state";
 import type { ActionResult } from "@/app/actions/action-result";
 import { UUID_PATTERN } from "@/lib/validation/uuid";
 
@@ -176,5 +176,71 @@ export async function updateActivity(
   return {
     status: "success",
     message: "Activity updated.",
+  };
+}
+
+export async function deleteActivity(
+  activityId: string,
+): Promise<ActionResult> {
+  if (!UUID_PATTERN.test(activityId)) {
+    return {
+      status: "error",
+      message: "The selected activity is invalid.",
+    };
+  }
+
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return {
+      status: "error",
+      message:
+        "Your session could not be verified. Please sign in again.",
+    };
+  }
+
+  const {
+    data: deletedActivity,
+    error: deleteError,
+  } = await supabase
+    .from("activities")
+    .delete()
+    .eq("id", activityId)
+    .eq("user_id", user.id)
+    .select("id")
+    .maybeSingle();
+
+  if (deleteError) {
+    Sentry.captureException(deleteError, {
+      tags: {
+        operation: "delete_activity",
+      },
+    });
+
+    return {
+      status: "error",
+      message:
+        "We couldn't delete the activity. Please try again.",
+    };
+  }
+
+  if (!deletedActivity) {
+    return {
+      status: "error",
+      message: "This activity could not be found.",
+    };
+  }
+
+  revalidatePath("/");
+  revalidatePath("/history");
+
+  return {
+    status: "success",
+    message: "Activity deleted.",
   };
 }
