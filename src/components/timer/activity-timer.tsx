@@ -45,6 +45,9 @@ export function ActivityTimer({
 }: ActivityTimerProps) {
   const [selectedActivityId, setSelectedActivityId] =
     useState<string | null>(null);
+  
+  const [sessionActivityId, setSessionActivityId] =
+  useState<string | null>(null);
 
   const [status, setStatus] =
     useState<TimerStatus>("idle");
@@ -115,6 +118,7 @@ export function ActivityTimer({
 
   function resetTimer(resetAt: number) {
     setSelectedActivityId(null);
+    setSessionActivityId(null);
     setStatus("idle");
     setSessionStartedAt(null);
     setSegmentStartedAt(null);
@@ -157,6 +161,7 @@ export function ActivityTimer({
 
     setSaveResult(null);
     setPendingTimeBlock(null);
+    setSessionActivityId(selectedActivityId);
     setSessionStartedAt(startedAt);
     setSegmentStartedAt(startedAt);
     setAccumulatedMilliseconds(0);
@@ -215,7 +220,7 @@ export function ActivityTimer({
 
     if (
       status === "idle" ||
-      !selectedActivityId ||
+      !sessionActivityId ||
       sessionStartedAt === null
     ) {
       return;
@@ -243,7 +248,7 @@ export function ActivityTimer({
     }
 
     const input: CreateTimeBlockInput = {
-      activityId: selectedActivityId,
+      activityId: sessionActivityId,
       startedAt: new Date(
         sessionStartedAt,
       ).toISOString(),
