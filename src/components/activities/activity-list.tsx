@@ -1,4 +1,5 @@
-import { EditActivityDialog } from "./edit-activity-dialog";
+import { EditActivityDialog } from "@/components/activities/edit-activity-dialog";
+import { DeleteActivityButton } from "@/components/activities/delete-activity-button";
 
 type ActivityListItem = {
   id: string;
@@ -44,8 +45,13 @@ export function ActivityList({
             {activity.name}
           </p>
 
-          <div className="ml-auto shrink-0">
+          <div className="flex shrink-0 items-center gap-1">
             <EditActivityDialog
+              activityId={activity.id}
+              activityName={activity.name}
+            />
+
+            <DeleteActivityButton
               activityId={activity.id}
               activityName={activity.name}
             />
