@@ -1,3 +1,6 @@
+import { EditActivityDialog } from "@/components/activities/edit-activity-dialog";
+import { DeleteActivityButton } from "@/components/activities/delete-activity-button";
+
 type ActivityListItem = {
   id: string;
   name: string;
@@ -36,11 +39,23 @@ export function ActivityList({
       {activities.map((activity) => (
         <li
           key={activity.id}
-          className="px-4 py-3"
+          className="flex items-center gap-3 px-4 py-3"
         >
-          <p className="truncate font-medium">
+          <p className="min-w-0 flex-1 truncate font-medium">
             {activity.name}
           </p>
+
+          <div className="flex shrink-0 items-center gap-1">
+            <EditActivityDialog
+              activityId={activity.id}
+              activityName={activity.name}
+            />
+
+            <DeleteActivityButton
+              activityId={activity.id}
+              activityName={activity.name}
+            />
+          </div>
         </li>
       ))}
     </ul>

@@ -45,6 +45,14 @@ export function ActivityTimer({
 }: ActivityTimerProps) {
   const [selectedActivityId, setSelectedActivityId] =
     useState<string | null>(null);
+  
+  const [sessionActivityId, setSessionActivityId] =
+  useState<string | null>(null);
+
+  const [
+    replacementActivityId,
+    setReplacementActivityId,
+  ] = useState<string | null>(null);
 
   const [status, setStatus] =
     useState<TimerStatus>("idle");
@@ -113,8 +121,18 @@ export function ActivityTimer({
     label: activity.name,
   }));
 
+  const pendingActivityWasDeleted =
+    pendingTimeBlock !== null &&
+    saveResult?.status === "error" &&
+    !activities.some(
+      (activity) =>
+        activity.id === pendingTimeBlock.activityId,
+    );
+
   function resetTimer(resetAt: number) {
     setSelectedActivityId(null);
+    setSessionActivityId(null);
+    setReplacementActivityId(null);
     setStatus("idle");
     setSessionStartedAt(null);
     setSegmentStartedAt(null);
@@ -157,6 +175,7 @@ export function ActivityTimer({
 
     setSaveResult(null);
     setPendingTimeBlock(null);
+    setSessionActivityId(selectedActivityId);
     setSessionStartedAt(startedAt);
     setSegmentStartedAt(startedAt);
     setAccumulatedMilliseconds(0);
@@ -215,7 +234,7 @@ export function ActivityTimer({
 
     if (
       status === "idle" ||
-      !selectedActivityId ||
+      !sessionActivityId ||
       sessionStartedAt === null
     ) {
       return;
@@ -243,7 +262,7 @@ export function ActivityTimer({
     }
 
     const input: CreateTimeBlockInput = {
-      activityId: selectedActivityId,
+      activityId: sessionActivityId,
       startedAt: new Date(
         sessionStartedAt,
       ).toISOString(),
@@ -365,14 +384,15 @@ export function ActivityTimer({
             type="button"
             variant="outline"
             onClick={handleResume}
-            disabled={isSaving}
+            disabled={isSaving || pendingActivityWasDeleted}
             className="w-full sm:w-auto"
           >
             Resume
           </Button>
         )}
 
-        {status !== "idle" && (
+        {status !== "idle" && 
+          !pendingActivityWasDeleted && (
           <Button
             type="button"
             variant={
@@ -393,7 +413,73 @@ export function ActivityTimer({
         )}
       </div>
 
-      {saveResult && (
+      {pendingActivityWasDeleted && (
+        <div className="space-y-3">
+          <p 
+            role="alert"
+            className="text-muted-foreground text-sm"
+          >
+            This session&apos;s activity was deleted. Your time is
+            still preserved. Choose another activity to record this
+            session under.
+          </p>
+
+          <Select
+            items={activityOptions}
+            value={replacementActivityId}
+            onValueChange={setReplacementActivityId}
+            disabled={!hasActivities || isSaving}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select an activity" />
+            </SelectTrigger>
+
+            <SelectContent>
+              {activityOptions.map((activity) => (
+                <SelectItem
+                  key={activity.value}
+                  value={activity.value}
+                >
+                  {activity.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Button
+            type="button"
+            disabled={
+              !replacementActivityId || isSaving
+            }
+            onClick={() => {
+              if (
+                !pendingTimeBlock ||
+                !replacementActivityId
+              ) {
+                return;
+              }
+
+              const reassignedTimeBlock = {
+                ...pendingTimeBlock,
+                activityId: replacementActivityId,
+              };
+
+              setSessionActivityId(replacementActivityId);
+              setSelectedActivityId(replacementActivityId);
+              setPendingTimeBlock(reassignedTimeBlock);
+              setReplacementActivityId(null);
+
+              void saveTimeBlock(reassignedTimeBlock);
+            }}
+          >
+            {isSaving
+              ? "Saving..."
+              : "Save session"}
+          </Button>
+        </div>
+      )}
+
+      {saveResult && !pendingActivityWasDeleted && (
         <p
           role={
             saveResult.status === "error"
