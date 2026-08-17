@@ -23,7 +23,7 @@ export function TimeBlockRow({
     <li className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
         <p className="truncate font-medium">
-          {timeBlock.activity?.name ?? "No activity"}
+          {timeBlock.activity?.name ?? "Unlabeled"}
         </p>
 
         <time
