@@ -65,6 +65,10 @@ export async function getRangeAnalytics({
     sessionCount: row.session_count,
   }));
 
+  const activeDays = days.filter(
+    (day) => day.totalSeconds > 0,
+  ).length;
+
   const activities = activityResult.data.map((row) => ({
     activityId: row.activity_id,
     activityName: row.activity_name ?? "Unlabeled",
@@ -121,10 +125,7 @@ export async function getRangeAnalytics({
     summary: {
       totalSeconds,
       sessionCount,
-      averageSessionSeconds:
-        sessionCount === 0
-          ? 0
-          : Math.round(totalSeconds / sessionCount),
+      activeDays,
     },
     days,
     activities,

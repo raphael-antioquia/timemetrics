@@ -33,26 +33,25 @@ export default async function AnalyticsPage() {
 
       <section>
         <h2>Summary</h2>
+
         <p>
           Total tracked:{" "}
           {formatDuration(analytics.summary.totalSeconds)}
         </p>
-        <p>Sessions: {analytics.summary.sessionCount}</p>
-        <p>
-          Average session:{" "}
-          {formatDuration(
-            analytics.summary.averageSessionSeconds,
-          )}
-        </p>
+
+        <p>Active days: {analytics.summary.activeDays} of 7</p>
       </section>
 
       <section>
         <h2>Daily</h2>
+
         <ul>
           {analytics.days.map((day) => (
             <li key={day.date}>
-              {day.date}: {formatDuration(day.totalSeconds)} (
-              {day.sessionCount} sessions)
+              {day.date}:{" "}
+              {day.totalSeconds === 0
+                ? "—"
+                : formatDuration(day.totalSeconds)}
             </li>
           ))}
         </ul>
@@ -65,15 +64,33 @@ export default async function AnalyticsPage() {
           <p>No activity tracked during this period.</p>
         ) : (
           <ul>
-            {analytics.activities.map((activity) => (
-              <li key={activity.activityId ?? "unlabeled"}>
-                {activity.activityName}:{" "}
-                {formatDuration(activity.totalSeconds)} (
-                {activity.sessionCount} sessions)
-              </li>
-            ))}
+            {analytics.activities.map((activity) => {
+              const percentage =
+                analytics.summary.totalSeconds === 0
+                  ? 0
+                  : (activity.totalSeconds /
+                      analytics.summary.totalSeconds) *
+                    100;
+
+              return (
+                <li key={activity.activityId ?? "unlabeled"}>
+                  {activity.activityName}:{" "}
+                  {formatDuration(activity.totalSeconds)} (
+                  {percentage < 1 && percentage > 0
+                    ? "<1"
+                    : Math.round(percentage)}
+                  %)
+                </li>
+              );
+            })}
           </ul>
         )}
+      </section>
+
+      <section>
+        <h2>Details</h2>
+
+        <p>Time blocks: {analytics.summary.sessionCount}</p>
       </section>
     </main>
   );

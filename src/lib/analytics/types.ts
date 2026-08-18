@@ -21,7 +21,7 @@ export type ActivityTotalRow = Omit<
 export type AnalyticsSummary = {
   totalSeconds: number;
   sessionCount: number;
-  averageSessionSeconds: number;
+  activeDays: number;
 };
 
 export type DailyBreakdown = {
