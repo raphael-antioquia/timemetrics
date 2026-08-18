@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDuration } from "@/lib/time/format-duration";
 import { getUserTimezone } from "@/lib/time/get-user-timezone";
 import { getLastSevenDayRange } from "@/lib/time/ranges";
+import { formatDayLabel } from "@/lib/time/format-day-label";
 
 export default async function AnalyticsPage() {
   const supabase = await createClient();
@@ -48,7 +49,7 @@ export default async function AnalyticsPage() {
         <ul>
           {analytics.days.map((day) => (
             <li key={day.date}>
-              {day.date}:{" "}
+              {formatDayLabel(day.date)}:{" "}
               {day.totalSeconds === 0
                 ? "—"
                 : formatDuration(day.totalSeconds)}
