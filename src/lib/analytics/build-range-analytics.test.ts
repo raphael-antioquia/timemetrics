@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { buildRangeAnalytics } from "./build-range-analytics";
 import type { DailyActivityTotalRow } from "./types";
 
@@ -87,13 +88,43 @@ describe("buildRangeAnalytics", () => {
     expect(result.summary.sessionCount).toBe(13);
     expect(result.summary.activeDays).toBe(4);
 
-    expect(
-      result.days.find((day) => day.date === "2026-08-12"),
-    ).toEqual({
+    const aug12 = result.days.find(
+      (day) => day.date === "2026-08-12",
+    );
+
+    expect(aug12).toEqual({
       date: "2026-08-12",
       totalSeconds: 11087,
       sessionCount: 3,
+      activities: [
+        {
+          activityId: "371a76a3-4c16-4479-b3fe-c474ba7c2fc9",
+          activityName: "Paused",
+          totalSeconds: 7260,
+          sessionCount: 1,
+        },
+        {
+          activityId: "70a3bc6c-d45e-4f61-901b-f85a3f4ba9fe",
+          activityName: "Pickleball New",
+          totalSeconds: 3797,
+          sessionCount: 1,
+        },
+        {
+          activityId: "5217cd88-f4e7-4f06-ba13-015123573d33",
+          activityName: "Test4",
+          totalSeconds: 30,
+          sessionCount: 1,
+        },
+      ],
     });
+
+    // Segments must reconcile to the day total they were derived from.
+    expect(
+      aug12?.activities.reduce(
+        (sum, activity) => sum + activity.totalSeconds,
+        0,
+      ),
+    ).toBe(11087);
 
     expect(
       result.days.find((day) => day.date === "2026-08-13"),
@@ -101,6 +132,7 @@ describe("buildRangeAnalytics", () => {
       date: "2026-08-13",
       totalSeconds: 0,
       sessionCount: 0,
+      activities: [],
     });
 
     expect(result.activities[0]).toMatchObject({

@@ -10,35 +10,37 @@ export function buildRangeAnalytics(
 ): RangeAnalytics {
   const dayTotals = new Map<
     string,
-    {
-      totalSeconds: number;
-      sessionCount: number;
-    }
+    RangeAnalytics["days"][number]
   >();
 
   const activityTotals = new Map<
     string | null,
-    {
-      activityId: string | null;
-      activityName: string;
-      totalSeconds: number;
-      sessionCount: number;
-    }
+    RangeAnalytics["activities"][number]
   >();
 
   let totalSeconds = 0;
   let sessionCount = 0;
 
   for (const row of rows) {
+    const activity = {
+      activityId: row.activity_id,
+      activityName: row.activity_name ?? "Unlabeled",
+      totalSeconds: row.total_seconds,
+      sessionCount: row.session_count,
+    };
+
     const existingDay = dayTotals.get(row.day);
 
     if (existingDay) {
       existingDay.totalSeconds += row.total_seconds;
       existingDay.sessionCount += row.session_count;
+      existingDay.activities.push(activity);
     } else {
       dayTotals.set(row.day, {
+        date: row.day,
         totalSeconds: row.total_seconds,
         sessionCount: row.session_count,
+        activities: [activity],
       });
     }
 
@@ -48,12 +50,7 @@ export function buildRangeAnalytics(
       existingActivity.totalSeconds += row.total_seconds;
       existingActivity.sessionCount += row.session_count;
     } else {
-      activityTotals.set(row.activity_id, {
-        activityId: row.activity_id,
-        activityName: row.activity_name ?? "Unlabeled",
-        totalSeconds: row.total_seconds,
-        sessionCount: row.session_count,
-      });
+      activityTotals.set(row.activity_id, { ...activity });
     }
 
     totalSeconds += row.total_seconds;
@@ -69,11 +66,14 @@ export function buildRangeAnalytics(
     const date = currentDate.toISOString().slice(0, 10);
     const totals = dayTotals.get(date);
 
-    days.push({
-      date,
-      totalSeconds: totals?.totalSeconds ?? 0,
-      sessionCount: totals?.sessionCount ?? 0,
-    });
+    days.push(
+      totals ?? {
+        date,
+        totalSeconds: 0,
+        sessionCount: 0,
+        activities: [],
+      },
+    );
 
     currentDate.setUTCDate(currentDate.getUTCDate() + 1);
   }

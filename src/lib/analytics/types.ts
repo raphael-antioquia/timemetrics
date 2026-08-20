@@ -21,10 +21,18 @@ export type AnalyticsSummary = {
   activeDays: number;
 };
 
+export type DailyActivityBreakdown = {
+  activityId: string | null;
+  activityName: string;
+  totalSeconds: number;
+  sessionCount: number;
+};
+
 export type DailyBreakdown = {
   date: string;
   totalSeconds: number;
   sessionCount: number;
+  activities: DailyActivityBreakdown[];
 };
 
 export type ActivityBreakdown = {

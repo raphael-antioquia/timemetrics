@@ -6,9 +6,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { DailyActivityChart } from "@/lib/analytics/daily-activity-chart";
 import { getRangeAnalytics } from "@/lib/analytics/get-range-analytics";
 import { createClient } from "@/lib/supabase/server";
-import { formatDayLabel } from "@/lib/time/format-day-label";
 import { formatDuration } from "@/lib/time/format-duration";
 import { getUserTimezone } from "@/lib/time/get-user-timezone";
 import { getLastSevenDayRange } from "@/lib/time/ranges";
@@ -53,6 +53,7 @@ export default async function AnalyticsPage() {
         <h1 className="text-3xl font-bold tracking-tight">
           Analytics
         </h1>
+
         <p className="text-muted-foreground">
           Last 7 days · {startDateLabel} – {endDateLabel}
         </p>
@@ -113,27 +114,12 @@ export default async function AnalyticsPage() {
             </CardTitle>
           </CardHeader>
 
-          <CardContent>
-            <ul className="divide-y">
-              {analytics.days.map((day) => (
-                <li
-                  key={day.date}
-                  className="flex items-center justify-between py-3 first:pt-0 last:pb-0"
-                >
-                  <span className="font-medium">
-                    {formatDayLabel(day.date)}
-                  </span>
+          <CardContent className="space-y-4">
+            <DailyActivityChart
+              days={analytics.days}
+              activities={analytics.activities}
+            />
 
-                  <span className="text-muted-foreground tabular-nums">
-                    {day.totalSeconds === 0
-                      ? "—"
-                      : formatDuration(day.totalSeconds)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-            <CardContent>
             <p className="text-sm text-muted-foreground">
               {analytics.summary.sessionCount} time{" "}
               {analytics.summary.sessionCount === 1
