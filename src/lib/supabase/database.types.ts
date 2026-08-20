@@ -199,6 +199,16 @@ export type Database = {
           total_seconds: number
         }[]
       }
+      get_daily_activity_totals: {
+        Args: { p_end_date: string; p_start_date: string; p_time_zone: string }
+        Returns: {
+          activity_id: string
+          activity_name: string
+          day: string
+          session_count: number
+          total_seconds: number
+        }[]
+      }
       get_daily_totals: {
         Args: { p_end_date: string; p_start_date: string; p_time_zone: string }
         Returns: {
