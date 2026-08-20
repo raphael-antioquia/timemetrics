@@ -128,6 +128,13 @@ export default async function HomePage() {
               View history
             </Link>
 
+            <Link
+              href="/analytics"
+              className="text-muted-foreground text-sm font-medium transition-colors hover:text-foreground"
+            >
+              View analytics
+            </Link>
+
             <form action={signOut}>
               <Button type="submit" variant="outline" size="sm">
                 Log out
