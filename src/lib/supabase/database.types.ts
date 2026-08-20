@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       activities: {
@@ -165,6 +190,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_daily_activity_totals: {
+        Args: { p_end_date: string; p_start_date: string; p_time_zone: string }
+        Returns: {
+          activity_id: string
+          activity_name: string
+          day: string
+          session_count: number
+          total_seconds: number
+        }[]
+      }
       time_blocks_for_today: {
         Args: { p_tz: string }
         Returns: {
@@ -312,6 +347,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       plan: ["free", "pro"],
