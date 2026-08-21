@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import {
@@ -49,14 +50,23 @@ export default async function AnalyticsPage() {
 
   return (
     <main className="mx-auto w-full max-w-5xl space-y-6 p-6">
-      <header>
-        <h1 className="text-3xl font-bold tracking-tight">
-          Analytics
-        </h1>
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Analytics
+          </h1>
 
-        <p className="text-muted-foreground">
-          Last 7 days · {startDateLabel} – {endDateLabel}
-        </p>
+          <p className="text-muted-foreground">
+            Last 7 days · {startDateLabel} – {endDateLabel}
+          </p>
+        </div>
+
+        <Link
+          href="/"
+          className="inline-flex shrink-0 items-center rounded-md border px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
+        >
+          ← Back to dashboard
+        </Link>
       </header>
 
       <section
