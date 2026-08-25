@@ -12,9 +12,16 @@ import { getRangeAnalytics } from "@/lib/analytics/get-range-analytics";
 import { createClient } from "@/lib/supabase/server";
 import { formatDuration } from "@/lib/time/format-duration";
 import { getUserTimezone } from "@/lib/time/get-user-timezone";
-import { getLastSevenDayRange } from "@/lib/time/ranges";
+import { getLastSevenDayRange, getLastThirtyDayRange } from "@/lib/time/ranges";
+import { parseAnalyticsRangePreset } from "@/lib/analytics/analytics-range-preset";
 
-export default async function AnalyticsPage() {
+type AnalyticsPageProps = {
+  searchParams: Promise<{
+    range?: string | string[];
+  }>;
+};
+
+export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps) {
   const supabase = await createClient();
 
   const {
@@ -25,12 +32,20 @@ export default async function AnalyticsPage() {
     redirect("/sign-in");
   }
 
+  const { range: rangeParam } = await searchParams;
+
+  const rangePreset =
+    parseAnalyticsRangePreset(rangeParam);
+
   const timeZone = await getUserTimezone(user.id);
 
-  const range = getLastSevenDayRange(timeZone);
+  const dateRange =
+    rangePreset === 7
+      ? getLastSevenDayRange(timeZone)
+      : getLastThirtyDayRange(timeZone);
 
   const analytics = await getRangeAnalytics({
-    ...range,
+    ...dateRange,
     timeZone,
   });
 
@@ -41,11 +56,11 @@ export default async function AnalyticsPage() {
   });
 
   const startDateLabel = dateFormatter.format(
-    new Date(`${range.startDate}T00:00:00Z`),
+    new Date(`${dateRange.startDate}T00:00:00Z`),
   );
 
   const endDateLabel = dateFormatter.format(
-    new Date(`${range.endDate}T00:00:00Z`),
+    new Date(`${dateRange.endDate}T00:00:00Z`),
   );
 
   return (
@@ -57,7 +72,7 @@ export default async function AnalyticsPage() {
           </h1>
 
           <p className="text-muted-foreground">
-            Last 7 days · {startDateLabel} – {endDateLabel}
+            Last {rangePreset} days · {startDateLabel} – {endDateLabel}
           </p>
         </div>
 
@@ -68,6 +83,35 @@ export default async function AnalyticsPage() {
           ← Back to dashboard
         </Link>
       </header>
+
+      <nav
+        aria-label="Analytics range"
+        className="flex gap-2"
+      >
+        <Link
+          href="/analytics"
+          aria-current={rangePreset === 7 ? "page" : undefined}
+          className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+            rangePreset === 7
+              ? "bg-foreground text-background"
+              : "hover:bg-muted"
+          }`}
+        >
+          7 days
+        </Link>
+
+        <Link
+          href="/analytics?range=30"
+          aria-current={rangePreset === 30 ? "page" : undefined}
+          className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+            rangePreset === 30
+              ? "bg-foreground text-background"
+              : "hover:bg-muted"
+          }`}
+        >
+          30 days
+        </Link>
+      </nav>
 
       <section
         aria-labelledby="summary-heading"

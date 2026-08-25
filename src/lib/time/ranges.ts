@@ -13,8 +13,23 @@ export function getLastSevenDayRange(
   timeZone: string,
   now = new Date(),
 ): DateRange {
+  return getTrailingDayRange(timeZone, 7, now);
+}
+
+export function getLastThirtyDayRange(
+  timeZone: string,
+  now = new Date(),
+): DateRange {
+  return getTrailingDayRange(timeZone, 30, now);
+}
+
+function getTrailingDayRange(
+  timeZone: string,
+  days: number,
+  now: Date,
+): DateRange {
   const endDate = getCalendarDate(now, timeZone);
-  const startDate = addCalendarDays(endDate, -6);
+  const startDate = addCalendarDays(endDate, -(days - 1));
 
   return {
     startDate: formatCalendarDate(startDate),
