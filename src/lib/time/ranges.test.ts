@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { getLastSevenDayRange } from "@/lib/time/ranges";
+
+import {
+  getLastSevenDayRange,
+  getLastThirtyDayRange,
+} from "@/lib/time/ranges";
 
 describe("getLastSevenDayRange", () => {
   it("uses the user's local date when UTC has already rolled to the next day", () => {
@@ -59,6 +63,20 @@ describe("getLastSevenDayRange", () => {
     expect(range).toEqual({
       startDate: "2026-08-13",
       endDate: "2026-08-19",
+    });
+  });
+});
+
+describe("getLastThirtyDayRange", () => {
+  it("returns the last 30 calendar days including today", () => {
+    const range = getLastThirtyDayRange(
+      "America/Toronto",
+      new Date("2026-08-25T16:00:00Z"),
+    );
+
+    expect(range).toEqual({
+      startDate: "2026-07-27",
+      endDate: "2026-08-25",
     });
   });
 });
