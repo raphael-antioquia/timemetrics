@@ -12,8 +12,13 @@ import { getRangeAnalytics } from "@/lib/analytics/get-range-analytics";
 import { createClient } from "@/lib/supabase/server";
 import { formatDuration } from "@/lib/time/format-duration";
 import { getUserTimezone } from "@/lib/time/get-user-timezone";
-import { getLastSevenDayRange, getLastThirtyDayRange } from "@/lib/time/ranges";
 import { parseAnalyticsRangePreset } from "@/lib/analytics/analytics-range-preset";
+import { buildRangeComparison } from "@/lib/analytics/build-range-comparison";
+import {
+  getLastSevenDayRange,
+  getLastThirtyDayRange,
+  getPreviousDateRange,
+} from "@/lib/time/ranges";
 
 type AnalyticsPageProps = {
   searchParams: Promise<{
@@ -43,11 +48,25 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
     rangePreset === 7
       ? getLastSevenDayRange(timeZone)
       : getLastThirtyDayRange(timeZone);
+  
+  const previousDateRange = getPreviousDateRange(dateRange);
 
-  const analytics = await getRangeAnalytics({
-    ...dateRange,
-    timeZone,
-  });
+  const [currentAnalytics, previousAnalytics] =
+    await Promise.all([
+      getRangeAnalytics({
+        ...dateRange,
+        timeZone,
+      }),
+      getRangeAnalytics({
+        ...previousDateRange,
+        timeZone,
+      }),
+    ]);
+
+  const comparison = buildRangeComparison(
+    currentAnalytics,
+    previousAnalytics,
+  );
 
   const dateFormatter = new Intl.DateTimeFormat("en-US", {
     month: "short",
@@ -135,7 +154,7 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
             <CardContent>
               <p className="text-3xl font-semibold tracking-tight">
                 {formatDuration(
-                  analytics.summary.totalSeconds,
+                  currentAnalytics.summary.totalSeconds,
                 )}
               </p>
             </CardContent>
@@ -150,9 +169,9 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
 
             <CardContent>
               <p className="text-3xl font-semibold tracking-tight">
-                {analytics.summary.activeDays}{" "}
+                {currentAnalytics.summary.activeDays}{" "}
                 <span className="text-lg text-muted-foreground">
-                  of {analytics.days.length}
+                  of {currentAnalytics.days.length}
                 </span>
               </p>
             </CardContent>
@@ -170,13 +189,13 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
 
           <CardContent className="space-y-4">
             <DailyActivityChart
-              days={analytics.days}
-              activities={analytics.activities}
+              days={currentAnalytics.days}
+              activities={currentAnalytics.activities}
             />
 
             <p className="text-sm text-muted-foreground">
-              {analytics.summary.sessionCount} time{" "}
-              {analytics.summary.sessionCount === 1
+              {currentAnalytics.summary.sessionCount} time{" "}
+              {currentAnalytics.summary.sessionCount === 1
                 ? "block"
                 : "blocks"}
             </p>
@@ -193,18 +212,18 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
           </CardHeader>
 
           <CardContent>
-            {analytics.activities.length === 0 ? (
+            {currentAnalytics.activities.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No activity tracked during this period.
               </p>
             ) : (
               <ul className="divide-y">
-                {analytics.activities.map((activity) => {
+                {currentAnalytics.activities.map((activity) => {
                   const percentage =
-                    analytics.summary.totalSeconds === 0
+                    currentAnalytics.summary.totalSeconds === 0
                       ? 0
                       : (activity.totalSeconds /
-                          analytics.summary.totalSeconds) *
+                          currentAnalytics.summary.totalSeconds) *
                         100;
 
                   const percentageLabel =
