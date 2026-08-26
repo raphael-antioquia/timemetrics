@@ -1,12 +1,11 @@
+import { 
+  type CalendarDate, 
+  parseCalendarDate, 
+} from "@/lib/time/calendar-date";
+
 export type DateRange = {
   startDate: string;
   endDate: string;
-};
-
-type CalendarDate = {
-  year: number;
-  month: number;
-  day: number;
 };
 
 export function getLastSevenDayRange(
@@ -101,4 +100,60 @@ function formatCalendarDate(date: CalendarDate): string {
   const day = String(date.day).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
+}
+
+const MS_PER_DAY = 86_400_000;
+
+function daysBetweenInclusive(
+  startDate: string,
+  endDate: string,
+): number {
+  const start = parseCalendarDate(startDate);
+  const end = parseCalendarDate(endDate);
+
+  const startMs = Date.UTC(
+    start.year,
+    start.month - 1,
+    start.day,
+  );
+
+  const endMs = Date.UTC(
+    end.year,
+    end.month - 1,
+    end.day,
+  );
+
+  return Math.floor((endMs - startMs) / MS_PER_DAY) + 1;
+}
+
+export function getPreviousDateRange(
+  current: DateRange,
+): DateRange {
+  const lengthInDays = daysBetweenInclusive(
+    current.startDate,
+    current.endDate,
+  );
+
+  if (lengthInDays <= 0) {
+    throw new Error("Date range end must be on or after start");
+  }
+
+  const currentStart = parseCalendarDate(
+    current.startDate,
+  );
+
+  const previousEnd = addCalendarDays(
+    currentStart,
+    -1,
+  );
+
+  const previousStart = addCalendarDays(
+    previousEnd,
+    -(lengthInDays - 1),
+  );
+
+  return {
+    startDate: formatCalendarDate(previousStart),
+    endDate: formatCalendarDate(previousEnd),
+  };
 }
