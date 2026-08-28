@@ -9,3 +9,21 @@ export function formatDuration(totalSeconds: number): string {
     .map((unit) => String(unit).padStart(2, "0"))
     .join(":");
 }
+
+export function formatAnalyticsDuration(
+  totalSeconds: number,
+): string {
+  const totalMinutes = Math.round(totalSeconds / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (hours === 0) {
+    return `${minutes}m`;
+  }
+
+  if (minutes === 0) {
+    return `${hours}h`;
+  }
+
+  return `${hours}h ${minutes}m`;
+}

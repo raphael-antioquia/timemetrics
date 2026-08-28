@@ -15,7 +15,7 @@ import {
 import { DailyActivityChart } from "@/lib/analytics/daily-activity-chart";
 import { getRangeAnalytics } from "@/lib/analytics/get-range-analytics";
 import { createClient } from "@/lib/supabase/server";
-import { formatDuration } from "@/lib/time/format-duration";
+import { formatDuration, formatAnalyticsDuration } from "@/lib/time/format-duration";
 import { getUserTimezone } from "@/lib/time/get-user-timezone";
 import {
   getLastSevenDayRange,
@@ -28,24 +28,6 @@ type AnalyticsPageProps = {
     range?: string | string[];
   }>;
 };
-
-function formatAnalyticsDuration(
-  seconds: number,
-): string {
-  const totalMinutes = Math.round(seconds / 60);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-
-  if (hours === 0) {
-    return `${minutes}m`;
-  }
-
-  if (minutes === 0) {
-    return `${hours}h`;
-  }
-
-  return `${hours}h ${minutes}m`;
-}
 
 function assertNever(value: never): never {
   throw new Error(
@@ -586,6 +568,10 @@ export default async function AnalyticsPage({
             <CardTitle id="activities-heading">
               Time by activity
             </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Current period compared with ·{" "}
+              {previousStartDateLabel} – {previousEndDateLabel}
+            </p>
           </CardHeader>
 
           <CardContent>
@@ -647,6 +633,94 @@ export default async function AnalyticsPage({
                   },
                 )}
               </ul>
+            )}
+          </CardContent>
+        </Card>
+      </section>
+      <section aria-labelledby="activity-comparison-heading">
+        <Card>
+          <CardHeader>
+            <CardTitle id="activity-comparison-heading">
+              Activity comparison
+            </CardTitle>
+
+            <p className="text-sm text-muted-foreground">
+              Current period compared with ·{" "}
+              {previousStartDateLabel} – {previousEndDateLabel}
+            </p>
+          </CardHeader>
+
+          <CardContent>
+            {comparison.activities.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No activity tracked during either period.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-150">
+                  <thead>
+                    <tr className="border-b text-left text-sm text-muted-foreground">
+                      <th className="pb-3 pr-4 font-medium">
+                        Activity
+                      </th>
+
+                      <th className="px-4 pb-3 text-right font-medium">
+                        Current
+                      </th>
+
+                      <th className="px-4 pb-3 text-right font-medium">
+                        Previous
+                      </th>
+
+                      <th className="pb-3 pl-4 text-right font-medium">
+                        Change
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody className="divide-y">
+                    {comparison.activities.map((activity) => (
+                      <tr
+                        key={
+                          activity.activityId ??
+                          "unlabeled"
+                        }
+                      >
+                        <th
+                          scope="row"
+                          className="max-w-48 truncate py-4 pr-4 text-left font-medium"
+                        >
+                          {activity.activityName}
+                        </th>
+
+                        <td className="px-4 py-4 text-right tabular-nums">
+                          {formatAnalyticsDuration(
+                            activity.currentSeconds,
+                          )}
+                        </td>
+
+                        <td className="px-4 py-4 text-right text-muted-foreground tabular-nums">
+                          {formatAnalyticsDuration(
+                            activity.previousSeconds,
+                          )}
+                        </td>
+
+                        <td className="py-4 pl-4 text-right tabular-nums">
+                          <DurationChangeValue
+                            currentSeconds={
+                              activity.currentSeconds
+                            }
+                            previousSeconds={
+                              activity.previousSeconds
+                            }
+                            change={activity.change}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </CardContent>
         </Card>
