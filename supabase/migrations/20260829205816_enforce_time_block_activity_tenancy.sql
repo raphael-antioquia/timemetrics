@@ -14,3 +14,4 @@ alter table public.time_blocks
   foreign key (activity_id, user_id)
   references public.activities (id, user_id)
   on delete set null (activity_id);
+  
