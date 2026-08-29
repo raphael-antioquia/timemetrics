@@ -86,6 +86,10 @@ set local role authenticated;
 
 -- 6. authenticated only has UPDATE(timezone), not UPDATE(plan_id).
 -- This should be blocked by column privileges before RLS is relevant.
+-- Pin the error message here because both the column-grant layer and RLS
+-- return SQLSTATE 42501; the message proves which protection rejected it.
+-- These three pinned messages are Postgres internals, not a stable API.
+-- A major version upgrade or non-English lc_messages can change them.
 select throws_ok(
   $$
     update public.profiles
@@ -93,7 +97,7 @@ select throws_ok(
     where id = '11111111-1111-1111-1111-111111111111'
   $$,
   '42501',
-  null::text,
+  'permission denied for table profiles',
   'Alice cannot update her own plan'
 );
 
@@ -185,6 +189,8 @@ select lives_ok(
 );
 
 -- 12. Alice may not create a profile belonging to Charlie.
+-- Pinned: proves the INSERT policy rejected this, not a primary key
+-- collision from a fixture that failed to delete Charlie's profile.
 select throws_ok(
   $$
     insert into public.profiles (
@@ -197,11 +203,14 @@ select throws_ok(
     )
   $$,
   '42501',
-  null::text,
+  'new row violates row-level security policy for table "profiles"',
   'Alice cannot create Charlie''s profile'
 );
 
 -- 13. Charlie owns this ID, but users may only create free profiles.
+-- Pinned: proves the plan_id predicate in the INSERT policy rejected this,
+-- not the id predicate and not a missing grant.
+
 reset role;
 
 set local request.jwt.claim.sub =
@@ -221,7 +230,7 @@ select throws_ok(
     )
   $$,
   '42501',
-  null::text,
+  'new row violates row-level security policy for table "profiles"',
   'Charlie cannot create his own profile with a pro plan'
 );
 
