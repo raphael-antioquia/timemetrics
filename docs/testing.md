@@ -34,7 +34,7 @@ The test process pins `TZ=America/Toronto`, a non-UTC timezone with daylight-sav
 | [`format-day-label.test.ts`](../src/lib/time/format-day-label.test.ts) | Stable calendar-date labels across week, month, and year boundaries plus malformed or impossible dates. |
 | [`format-duration.test.ts`](../src/lib/time/format-duration.test.ts) | Timer duration formatting, durations beyond 24 hours, analytics minute rounding, and hour-boundary behavior. |
 | [`get-user-timezone.test.ts`](../src/lib/time/get-user-timezone.test.ts) | Profile timezone retrieval and Supabase error capture/rethrow behavior. The Supabase server client and Sentry are mocked. |
-| [`persisted-timer.test.ts`](../src/lib/time/persisted-timer.test.ts) | Restoration and rejection of browser-persisted running, paused, and pending-stop timer state, including malformed JSON, schema version, UUIDs, timestamp ordering, accumulated-time bounds, five-minute clock-skew tolerance, 24-hour expiry, and pending payload validation. |
+| [`persisted-timer.test.ts`](../src/lib/time/persisted-timer.test.ts) | Restoration and rejection of browser-persisted running, paused, and pending-stop timer state, including authenticated-user ownership, legacy version-1 payload rejection, foreign-user rejection, invalid owner IDs, malformed JSON, unsupported schema versions, UUIDs, timestamp ordering, accumulated-time bounds, five-minute clock-skew tolerance, 24-hour expiry, and pending payload validation. |
 
 The DST cases in `format-datetime-local.test.ts` are characterization tests as well as regression tests. They make the platform behavior explicit: a `datetime-local` value cannot preserve which occurrence of a repeated fall-back hour produced it, and JavaScript normalizes a nonexistent spring-forward wall time forward.
 
@@ -53,7 +53,22 @@ The database implementation of the analytics RPC is covered separately by pgTAP;
 
 [`uuid.test.ts`](../src/lib/validation/uuid.test.ts) tests the UUID pattern used by Server Actions, including uppercase input, malformed values, surrounding whitespace, and the currently unsupported UUIDv7 form.
 
-There are no direct tests for React components, pages, authentication actions/routes, activity or time-block Server Actions, the interactive timer lifecycle, or browser `localStorage` integration. The persisted-timer parser is tested, but the component behavior that writes and restores that state is not.
+`src/app/actions/time-blocks.test.ts` exercises time-block creation through the public Server Actions with a mocked Supabase boundary. It covers successful inserts, exact-match recovery after `23P01`, genuine overlaps, recovery-query failures, non-overlap insert failures, and the shared manual-entry persistence path.
+
+There are no direct tests for React components, pages, authentication actions/routes, activity Server Actions, the interactive timer lifecycle, or browser `localStorage` integration beyond the persisted-state parser. In particular, the `readPersistedTimer` path that removes invalid or foreign-user state from `localStorage` is not covered by an automated browser test.
+
+### Manual verification
+
+The persisted-timer ownership change was also smoke-tested through the abnormal account-transition path that bypasses normal sign-out cleanup:
+
+1. A timer was started as user A and its version-2, user-owned payload was confirmed in `localStorage`.
+2. Supabase authentication cookies were removed without using the application's sign-out flow, leaving the persisted timer intact.
+3. After reloading, user B signed in using the same browser.
+4. The timer rendered idle rather than restoring user A's state.
+5. The foreign-user timer payload was removed from `localStorage`.
+6. User B could start and save a new timer normally.
+
+This verifies the browser wiring for cross-account timer isolation manually. It does not replace automated browser or end-to-end coverage.
 
 ### Coverage reports
 
@@ -204,9 +219,9 @@ The workflow is defined in [`.github/workflows/ci.yml`](../.github/workflows/ci.
 
 The repository currently has no automated coverage for:
 
-- browser or end-to-end flows, including sign-up/sign-in, timer interaction, manual entry, editing, deletion, navigation, and rendered analytics;
+- browser or end-to-end flows, including sign-up/sign-in, timer interaction, persisted-timer ownership and cleanup across account transitions, manual entry, editing, deletion, navigation, and rendered analytics;
 - React component behavior or accessibility interactions;
-- Server Actions for authentication, activities, time blocks, and timezone initialization;
+- Server Actions for authentication, activities, and timezone initialization; time-block creation now has focused mocked-boundary coverage, but update/delete behavior is not directly covered;
 - a real TypeScript/Supabase integration path—the Supabase-facing Vitest tests use mocks, while pgTAP calls PostgreSQL directly;
 - direct pgTAP assertions for time-block overlap exclusion, positive/range-bounded duration checks, valid range checks, name uniqueness/nonblank checks, or `updated_at` triggers;
 - `time_blocks_for_today` behavior and non-UTC/DST boundaries inside the SQL analytics functions;
