@@ -131,25 +131,66 @@ async function persistTimeBlock(
     };
   }
 
+  const startedAt = new Date(
+    startedAtMilliseconds,
+  ).toISOString();
+
+  const endedAt = new Date(
+    endedAtMilliseconds,
+  ).toISOString();
+
   const { error: insertError } = await supabase
     .from("time_blocks")
     .insert({
       user_id: user.id,
       activity_id: activity.id,
-      started_at: new Date(
-        startedAtMilliseconds,
-      ).toISOString(),
-      ended_at: new Date(
-        endedAtMilliseconds,
-      ).toISOString(),
+      started_at: startedAt,
+      ended_at: endedAt,
       duration_seconds: durationSeconds,
     });
 
   if (insertError) {
     // 23P01 is the exclusion violation raised by
-    // time_blocks_no_overlap. This is the database
-    // enforcing a known domain rule, not a fault.
+    // time_blocks_no_overlap. It may represent either
+    // a genuine overlap or a retry of an insert that
+    // already committed successfully.
     if (insertError.code === "23P01") {
+      const {
+        data: existingTimeBlock,
+        error: existingTimeBlockError,
+      } = await supabase
+        .from("time_blocks")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("activity_id", activity.id)
+        .eq("started_at", startedAt)
+        .eq("ended_at", endedAt)
+        .eq("duration_seconds", durationSeconds)
+        .maybeSingle();
+
+      if (existingTimeBlockError) {
+        Sentry.captureException(existingTimeBlockError, {
+          tags: {
+            operation: "verify_time_block_retry",
+          },
+        });
+
+        return {
+          status: "error",
+          message:
+            "We couldn't verify whether this time session was saved. Please try again.",
+        };
+      }
+
+      if (existingTimeBlock) {
+        revalidatePath("/");
+
+        return {
+          status: "success",
+          message: "Time session saved.",
+        };
+      }
+
       return {
         status: "error",
         message:

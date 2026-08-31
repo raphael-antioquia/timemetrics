@@ -140,13 +140,12 @@ function createHarness({
   };
 }
 
-describe("createTimeBlock", () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
+beforeEach(() => {
+  vi.resetAllMocks();
+});
 
+describe("createTimeBlock", () => {
   it("returns success when the time block is inserted", async () => {
-    
     const harness = createHarness();
 
     vi.mocked(createClient).mockResolvedValue(
@@ -159,6 +158,8 @@ describe("createTimeBlock", () => {
       status: "success",
       message: "Time session saved.",
     });
+
+    expect(harness.insert).toHaveBeenCalledTimes(1);
 
     expect(harness.insert).toHaveBeenCalledWith({
       user_id: USER_ID,
@@ -195,6 +196,8 @@ describe("createTimeBlock", () => {
       status: "success",
       message: "Time session saved.",
     });
+
+    expect(harness.insert).toHaveBeenCalledTimes(1);
 
     expect(harness.existingEq).toHaveBeenCalledTimes(5);
 
@@ -241,6 +244,10 @@ describe("createTimeBlock", () => {
         "This time range overlaps an existing session.",
     });
 
+    expect(harness.insert).toHaveBeenCalledTimes(1);
+
+    expect(harness.existingEq).toHaveBeenCalledTimes(5);
+
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 
@@ -268,6 +275,8 @@ describe("createTimeBlock", () => {
         "We couldn't verify whether this time session was saved. Please try again.",
     });
 
+    expect(harness.insert).toHaveBeenCalledTimes(1);
+
     expect(
       Sentry.captureException,
     ).toHaveBeenCalledWith(
@@ -282,6 +291,46 @@ describe("createTimeBlock", () => {
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 
+  it("captures a non-overlap insert error", async () => {
+    const insertError = {
+      code: "23503",
+    };
+
+    const harness = createHarness({
+      insertError,
+    });
+
+    vi.mocked(createClient).mockResolvedValue(
+      harness.client,
+    );
+
+    await expect(
+      createTimeBlock(timerInput),
+    ).resolves.toEqual({
+      status: "error",
+      message:
+        "We couldn't save this time session. Please try again.",
+    });
+
+    expect(harness.insert).toHaveBeenCalledTimes(1);
+
+    expect(
+      harness.existingEq,
+    ).not.toHaveBeenCalled();
+
+    expect(
+      Sentry.captureException,
+    ).toHaveBeenCalledWith(insertError, {
+      tags: {
+        operation: "create_time_block",
+      },
+    });
+
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+describe("createManualTimeBlock", () => {
   it("treats an exact existing time block as success for manual entries", async () => {
     const harness = createHarness({
       insertError: {
@@ -307,10 +356,26 @@ describe("createTimeBlock", () => {
       message: "Time session saved.",
     });
 
+    expect(harness.insert).toHaveBeenCalledTimes(1);
+
+    expect(harness.existingEq).toHaveBeenCalledTimes(5);
+
     expect(harness.existingEq.mock.calls).toEqual(
       expect.arrayContaining([
+        ["user_id", USER_ID],
+        ["activity_id", ACTIVITY_ID],
+        [
+          "started_at",
+          "2026-01-01T15:00:00.000Z",
+        ],
+        [
+          "ended_at",
+          "2026-01-01T16:00:00.000Z",
+        ],
         ["duration_seconds", 3600],
       ]),
     );
+
+    expect(revalidatePath).toHaveBeenCalledWith("/");
   });
 });
