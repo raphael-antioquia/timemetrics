@@ -225,13 +225,13 @@ Server Actions return small discriminated success/error results for expected out
 
 Instrumented failures in authentication flows, Server Actions, profile-timezone loading, and analytics RPC access are captured with Sentry operation tags. Authentication reporting suppresses expected 4xx user-flow errors and records server or status-less failures. The analytics adapter captures RPC failures and throws a generic error, which is handled by the analytics route error boundary. A global error component reports otherwise unhandled rendering errors. Dashboard and history page-query failures receive user-facing fallback states but are not all explicitly captured at their query sites.
 
-Sentry is initialized for browser, Node.js, and edge execution contexts through [`src/instrumentation-client.ts`](../src/instrumentation-client.ts), [`src/instrumentation.ts`](../src/instrumentation.ts), and the root Sentry configuration files. Request errors are connected through `onRequestError`, and client router transitions are instrumented. The current configuration enables logs and sets `tracesSampleRate` to `1` in all three runtime configurations.
+Sentry is initialized for browser, Node.js, and edge execution contexts through [`src/instrumentation-client.ts`](../src/instrumentation-client.ts), [`src/instrumentation.ts`](../src/instrumentation.ts), and the root Sentry configuration files when `NEXT_PUBLIC_SENTRY_DSN` is configured. Request errors are connected through `onRequestError`, and client router transitions are instrumented. Performance tracing uses a `tracesSampleRate` of `0.1`, while Sentry Logs are disabled. Deployments without a configured DSN do not initialize Sentry.
 
 ## Runtime and Deployment Boundaries
 
 The repository targets Node.js 24 and uses the standard Next.js build and `next start` runtime. GitHub Actions verifies linting, type checking, unit tests, a production build, and a separate local-Supabase database suite. The local Supabase configuration targets PostgreSQL 17.
 
-The repository requires only the public Supabase URL and publishable key for application data access. Sentry configuration is bundled separately for client, server, and edge contexts.
+The repository requires only the public Supabase URL and publishable key for application data access. Sentry configuration is defined separately for client, server, and edge contexts, with initialization controlled by the deployment-provided `NEXT_PUBLIC_SENTRY_DSN` environment variable.
 
 No hosting provider, production Supabase topology, region, SMTP configuration, or deployment workflow is defined in the repository. The presence of Sentry edge configuration does not establish that application pages run at the edge; instrumentation loads the matching configuration when Next.js supplies that runtime.
 
