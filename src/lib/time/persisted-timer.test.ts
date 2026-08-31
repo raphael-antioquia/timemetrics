@@ -14,11 +14,18 @@ const FIVE_MINUTES = 5 * 60 * 1000;
 const TWENTY_FOUR_HOURS =
   24 * 60 * 60 * 1000;
 
+const USER_ID =
+  "223e4567-e89b-12d3-a456-426614174000";
+
+const OTHER_USER_ID =
+  "323e4567-e89b-12d3-a456-426614174000";
+
 function createPersistedTimer(
   overrides: Partial<PersistedTimer> = {},
 ): PersistedTimer {
   return {
-    version: 1,
+    version: 2,
+    ownerUserId: USER_ID,
     sessionActivityId: ACTIVITY_ID,
     sessionStartedAt: NOW - 60_000,
     segmentStartedAt: NOW - 30_000,
@@ -60,7 +67,7 @@ const invalidPendingTimeBlocks: Array<
 describe("parsePersistedTimer", () => {
   it("returns null when no persisted timer exists", () => {
     expect(
-      parsePersistedTimer(null, NOW),
+      parsePersistedTimer(null, NOW, USER_ID),
     ).toBeNull();
   });
 
@@ -69,6 +76,7 @@ describe("parsePersistedTimer", () => {
       parsePersistedTimer(
         "{not-valid-json",
         NOW,
+        USER_ID,
       ),
     ).toBeNull();
   });
@@ -76,13 +84,14 @@ describe("parsePersistedTimer", () => {
   it("returns null for an unsupported version", () => {
     const timer = {
       ...createPersistedTimer(),
-      version: 2,
+      version: 3,
     };
 
     expect(
       parsePersistedTimer(
         JSON.stringify(timer),
         NOW,
+        USER_ID,
       ),
     ).toBeNull();
   });
@@ -96,6 +105,7 @@ describe("parsePersistedTimer", () => {
       parsePersistedTimer(
         JSON.stringify(timer),
         NOW,
+        USER_ID,
       ),
     ).toBeNull();
   });
@@ -113,6 +123,7 @@ describe("parsePersistedTimer", () => {
       parsePersistedTimer(
         JSON.stringify(timer),
         NOW,
+        USER_ID,
       ),
     ).toBeNull();
   });
@@ -127,6 +138,7 @@ describe("parsePersistedTimer", () => {
       parsePersistedTimer(
         JSON.stringify(timer),
         NOW,
+        USER_ID,
       ),
     ).toBeNull();
   });
@@ -147,6 +159,7 @@ describe("parsePersistedTimer", () => {
       parsePersistedTimer(
         JSON.stringify(timer),
         NOW,
+        USER_ID,
       ),
     ).toBeNull();
   });
@@ -163,6 +176,7 @@ describe("parsePersistedTimer", () => {
       parsePersistedTimer(
         JSON.stringify(timer),
         NOW,
+        USER_ID,
       ),
     ).toEqual(timer);
   });
@@ -179,6 +193,7 @@ describe("parsePersistedTimer", () => {
       parsePersistedTimer(
         JSON.stringify(timer),
         NOW,
+        USER_ID,
       ),
     ).toBeNull();
   });
@@ -196,6 +211,7 @@ describe("parsePersistedTimer", () => {
       parsePersistedTimer(
         JSON.stringify(timer),
         NOW,
+        USER_ID,
       ),
     ).toEqual(timer);
   });
@@ -213,6 +229,7 @@ describe("parsePersistedTimer", () => {
       parsePersistedTimer(
         JSON.stringify(timer),
         NOW,
+        USER_ID,
       ),
     ).toEqual(timer);
   });
@@ -230,6 +247,7 @@ describe("parsePersistedTimer", () => {
       parsePersistedTimer(
         JSON.stringify(timer),
         NOW,
+        USER_ID,
       ),
     ).toBeNull();
   });
@@ -247,6 +265,7 @@ describe("parsePersistedTimer", () => {
       parsePersistedTimer(
         JSON.stringify(timer),
         NOW,
+        USER_ID,
       ),
     ).toEqual(timer);
   });
@@ -263,6 +282,7 @@ describe("parsePersistedTimer", () => {
       parsePersistedTimer(
         JSON.stringify(timer),
         NOW,
+        USER_ID,
       ),
     ).toEqual(timer);
   });
@@ -289,6 +309,7 @@ describe("parsePersistedTimer", () => {
       parsePersistedTimer(
         JSON.stringify(timer),
         NOW,
+        USER_ID,
       ),
     ).toEqual(timer);
   });
@@ -321,8 +342,56 @@ describe("parsePersistedTimer", () => {
         parsePersistedTimer(
           JSON.stringify(timer),
           NOW,
+          USER_ID,
         ),
       ).toBeNull();
     },
   );
+
+  it("returns null when the persisted timer belongs to another user", () => {
+    const timer = createPersistedTimer({
+      ownerUserId: OTHER_USER_ID,
+    });
+
+    expect(
+      parsePersistedTimer(
+        JSON.stringify(timer),
+        NOW,
+        USER_ID,
+      ),
+    ).toBeNull();
+  });
+
+  it("returns null for an invalid owner user ID", () => {
+    const timer = createPersistedTimer({
+      ownerUserId: "not-a-uuid",
+    });
+
+    expect(
+      parsePersistedTimer(
+        JSON.stringify(timer),
+        NOW,
+        USER_ID,
+      ),
+    ).toBeNull();
+  });
+
+  it("returns null for a legacy version-1 payload with no owner", () => {
+    const legacyTimer = {
+      version: 1,
+      sessionActivityId: ACTIVITY_ID,
+      sessionStartedAt: NOW - 60_000,
+      segmentStartedAt: NOW - 30_000,
+      accumulatedMilliseconds: 30_000,
+      pendingTimeBlock: null,
+    };
+
+    expect(
+      parsePersistedTimer(
+        JSON.stringify(legacyTimer),
+        NOW,
+        USER_ID,
+      ),
+    ).toBeNull();
+  });
 });

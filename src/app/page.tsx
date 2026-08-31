@@ -151,7 +151,10 @@ export default async function HomePage() {
             </CardHeader>
 
             <CardContent>
-              <ActivityTimer activities={activityList} />
+              <ActivityTimer
+                activities={activityList}
+                userId={user.id}
+              />
             </CardContent>
           </Card>
 

@@ -4,8 +4,9 @@ import { signOut } from "@/app/auth/actions";
 import { Button } from "@/components/ui/button";
 import { clearPersistedTimer } from "@/lib/time/persisted-timer";
 
-// Client component so persisted timer state is cleared before sign-out
-// navigates away, preventing it from carrying into another account.
+// Clears persisted timer state before sign-out navigates away. Ownership
+// is enforced on read, so this is defense-in-depth rather than the
+// primary control.
 export function SignOutForm() {
   return (
     <form
