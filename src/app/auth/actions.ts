@@ -41,7 +41,7 @@ export async function signUp(formData: FormData) {
 
   const supabase = await createClient();
 
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
   });
@@ -55,6 +55,13 @@ export async function signUp(formData: FormData) {
         : "We could not create your account right now. Please try again.";
 
     redirectWithMessage("/sign-up", "error", message);
+  }
+
+  // With email confirmations disabled, signUp returns an authenticated
+  // session immediately. With them enabled, session is null and the user
+  // must confirm first. Handle both rather than assuming one config.
+  if (data.session) {
+    redirect("/");
   }
 
   redirectWithMessage(
