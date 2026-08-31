@@ -59,20 +59,26 @@ select ok(
   'anon session has no authenticated user id'
 );
 
--- Rows exist, but anon must see none of them.
-select is_empty(
+-- Table grants reject anonymous reads before RLS is evaluated.
+select throws_ok(
   'select id from public.profiles',
-  'anon reads no profiles'
+  '42501',
+  null::text,
+  'anon cannot read profiles'
 );
 
-select is_empty(
+select throws_ok(
   'select id from public.activities',
-  'anon reads no activities'
+  '42501',
+  null::text,
+  'anon cannot read activities'
 );
 
-select is_empty(
+select throws_ok(
   'select id from public.time_blocks',
-  'anon reads no time blocks'
+  '42501',
+  null::text,
+  'anon cannot read time blocks'
 );
 
 reset role;

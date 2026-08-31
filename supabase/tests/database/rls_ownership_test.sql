@@ -88,7 +88,6 @@ set local role authenticated;
 select lives_ok(
   $$
     insert into public.time_blocks (
-      id,
       user_id,
       activity_id,
       started_at,
@@ -96,7 +95,6 @@ select lives_ok(
       duration_seconds
     )
     values (
-      'cccccccc-cccc-cccc-cccc-ccccccccccc2',
       '11111111-1111-1111-1111-111111111111',
       'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1',
       '2026-01-01 10:00:00+00',
@@ -113,7 +111,6 @@ select lives_ok(
 select throws_ok(
   $$
     insert into public.time_blocks (
-      id,
       user_id,
       activity_id,
       started_at,
@@ -121,7 +118,6 @@ select throws_ok(
       duration_seconds
     )
     values (
-      'cccccccc-cccc-cccc-cccc-ccccccccccc3',
       '11111111-1111-1111-1111-111111111111',
       'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
       '2026-01-01 11:00:00+00',

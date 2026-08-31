@@ -128,12 +128,11 @@ values
 -- Anon
 -- ---------------------------------------------------------------------------
 
--- Supabase may grant anon EXECUTE on public functions by default.
--- The important invariant is that an unauthenticated caller receives no
--- user analytics.
+-- anon can reach this SECURITY INVOKER function, but the function cannot read
+-- its underlying tables with anon's deliberately empty table grants.
 set local role anon;
 
-select is_empty(
+select throws_ok(
   $$
     select *
     from public.get_daily_activity_totals(
@@ -142,7 +141,9 @@ select is_empty(
       'UTC'
     )
   $$,
-  'anon executing the RPC returns no rows'
+  '42501',
+  null::text,
+  'anon cannot read analytics through the RPC'
 );
 
 reset role;

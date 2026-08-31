@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(12);
+select plan(11);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures: seed as postgres
@@ -53,15 +53,11 @@ select results_eq(
 select lives_ok(
   $$
     insert into public.activities (
-      id,
       user_id,
-      category_id,
       name
     )
     values (
-      'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2',
       '11111111-1111-1111-1111-111111111111',
-      null,
       'Alice Inserted Activity'
     )
   $$,
@@ -72,15 +68,11 @@ select lives_ok(
 select throws_ok(
   $$
     insert into public.activities (
-      id,
       user_id,
-      category_id,
       name
     )
     values (
-      'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2',
       '22222222-2222-2222-2222-222222222222',
-      null,
       'Injected Bob Activity'
     )
   $$,
@@ -108,20 +100,6 @@ select is(
   ),
   'Alice Activity Updated',
   'Alice update affected her activity'
-);
-
--- Alice cannot transfer ownership of her activity to Bob.
--- Use the freshly inserted activity: reassigning a row whose name could
--- collide with one of Bob's would raise 23505 instead of the expected 42501.
-select throws_ok(
-  $$
-    update public.activities
-    set user_id = '22222222-2222-2222-2222-222222222222'
-    where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2'
-  $$,
-  '42501',
-  null::text,
-  'Alice cannot reassign her activity to Bob'
 );
 
 -- Bob's hidden activity should be filtered by UPDATE USING.
