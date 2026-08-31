@@ -1,12 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { signOut } from "@/app/auth/actions";
 import { ActivityList } from "@/components/activities/activity-list";
 import { CreateActivityForm } from "@/components/activities/create-activity-form";
 import { ManualTimeBlockForm } from "@/components/time-blocks/manual-time-block-form";
 import { RecentTimeBlockList } from "@/components/time-blocks/recent-time-block-list";
 import { ActivityTimer } from "@/components/timer/activity-timer";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -18,6 +16,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDuration } from "@/lib/time/format-duration";
 import { getUserTimezone } from "@/lib/time/get-user-timezone";
 import { TimezoneInitializer } from "@/components/timezone-initializer";
+import { SignOutForm } from "@/components/auth/sign-out-form";
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -135,11 +134,7 @@ export default async function HomePage() {
               View analytics
             </Link>
 
-            <form action={signOut}>
-              <Button type="submit" variant="outline" size="sm">
-                Log out
-              </Button>
-            </form>
+            <SignOutForm />
           </div>
         </header>
 
