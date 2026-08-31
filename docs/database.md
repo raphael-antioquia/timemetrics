@@ -22,7 +22,7 @@ erDiagram
 
 | Table | Responsibility | Important columns |
 | --- | --- | --- |
-| `profiles` | One application profile for each Supabase Auth user. | `id` is both the primary key and the foreign key to `auth.users.id`. `timezone` is the user's reporting/display timezone and defaults to `UTC`. `plan_id` uses the `plan` enum and defaults to `free`. |
+| `profiles` | Application profile keyed one-to-one to a Supabase Auth user; a trigger creates one for each new Auth insert. | `id` is both the primary key and the foreign key to `auth.users.id`. `timezone` is the user's reporting/display timezone and defaults to `UTC`. `plan_id` uses the `plan` enum and defaults to `free`. |
 | `categories` | Optional user-owned grouping records for activities. | `user_id` identifies the owner; `name` is unique per owner. The current application does not expose category management. |
 | `activities` | User-owned labels against which time is tracked. | `category_id` is nullable. `user_id` is immutable through current client grants. |
 | `time_blocks` | Completed time sessions. | `started_at` and `ended_at` are absolute instants; `duration_seconds` is stored separately and represents counted activity time. `activity_id` is nullable so history can survive activity deletion. |

@@ -92,7 +92,7 @@ set local request.jwt.claim.sub = '<fixture-user-uuid>';
 set local role authenticated;
 ```
 
-`auth.uid()` reads that local subject claim, so the production RLS policy expressions execute without being replaced or mocked. Anonymous behavior is exercised with `SET LOCAL ROLE anon` and no subject claim.
+`auth.uid()` reads that local subject claim, so the migrated RLS policy expressions execute without being replaced or mocked. Anonymous behavior is exercised with `SET LOCAL ROLE anon` and no subject claim.
 
 Several tests use `RESET ROLE` temporarily to inspect physical database state after an operation. This distinguishes a row that remained unchanged from a row that merely became invisible through RLS. The constraint-layer tenancy test deliberately remains `postgres`: if it used `authenticated`, RLS could reject the write first and mask a missing foreign-key guarantee.
 
@@ -150,7 +150,7 @@ npx vitest run src/lib/time/ranges.test.ts
 
 ### Database tests
 
-Start the local Supabase containers, which initialize the local services and apply the committed migrations:
+Start the local Supabase containers. A fresh local stack initializes the services and applies the committed migrations:
 
 ```bash
 npx supabase start
@@ -213,4 +213,4 @@ The repository currently has no automated coverage for:
 - category policy CRUD behavior beyond the RLS-enabled and grant-catalog checks; or
 - enforced coverage thresholds or coverage publication in CI.
 
-These are statements about the current repository, not a proposed testing roadmap. In particular, Playwright appears neither as a configured test tool nor as an implemented suite.
+These are statements about the current repository, not a proposed testing roadmap. No Playwright configuration or test suite is present.

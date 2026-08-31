@@ -6,7 +6,7 @@ This document describes the architecture implemented in the current TimeMetrics 
 
 TimeMetrics is a server-first Next.js App Router application backed by Supabase Auth and the Supabase Data API. Most reads happen while rendering Server Components. Interactive Client Components hold UI state and invoke Server Actions for mutations. Those reads and writes use the signed-in user's cookie-backed Supabase session rather than a service-role credential, leaving Row Level Security and PostgreSQL constraints active for application traffic.
 
-The live timer is the main exception to server-owned state: an in-progress session is maintained in browser memory and `localStorage`. PostgreSQL receives a completed time block only when the user stops the timer or creates a manual entry.
+The live timer is the main exception to server-owned state: an in-progress session is maintained in browser memory and `localStorage`. A new time-block row is inserted only when the user stops the timer or creates a manual entry.
 
 ```mermaid
 flowchart LR
@@ -35,7 +35,7 @@ There is no separate application API service or ORM. The only conventional route
 | Time and analytics libraries | Provide calendar-date calculations, formatting, timer persistence validation, aggregate construction, and comparison logic |
 | Supabase integration | Create cookie-aware server clients, refresh sessions in the request proxy, and provide generated database types |
 | PostgreSQL | Store durable data and enforce row ownership, grants, relational integrity, valid time ranges, and non-overlap; aggregate reporting data through SQL functions |
-| Observability | Capture unexpected authentication, query, mutation, rendering, and request errors through Sentry |
+| Observability | Capture instrumented authentication, data-access, mutation, rendering, and request errors through Sentry |
 
 The main feature areas are represented by [`src/components/activities`](../src/components/activities), [`src/components/time-blocks`](../src/components/time-blocks), and [`src/components/timer`](../src/components/timer). Cross-cutting logic lives under [`src/lib`](../src/lib) rather than inside presentation components.
 
@@ -91,7 +91,7 @@ Client Components do not currently query Supabase tables directly. A browser cli
 1. The sign-up form posts to the `signUp` Server Action in [`src/app/auth/actions.ts`](../src/app/auth/actions.ts).
 2. The action validates the form and calls `supabase.auth.signUp()`.
 3. When Supabase inserts the Auth user, a `SECURITY DEFINER` database trigger creates the corresponding application profile with database defaults.
-4. Environments requiring email verification can return through [`src/app/auth/confirm/route.ts`](../src/app/auth/confirm/route.ts), which verifies the OTP and redirects to the dashboard. Whether confirmation is required is a Supabase environment setting; local configuration currently disables it.
+4. Environments requiring email verification can return through [`src/app/auth/confirm/route.ts`](../src/app/auth/confirm/route.ts), which verifies the OTP and redirects to the dashboard. Whether confirmation is required is a Supabase environment setting; local configuration currently disables it. The repository contains the callback handler but not hosted Supabase email-template configuration proving that deployed confirmation messages target this route.
 5. Sign-in uses `signInWithPassword()`; the Supabase SSR client writes the resulting session cookies.
 6. Subsequent requests pass through the session-refresh proxy, and protected pages verify the user with `getUser()`.
 7. Sign-out clears the local timer and calls Supabase sign-out with local scope before redirecting to `/sign-in`.
@@ -100,7 +100,7 @@ Client Components do not currently query Supabase tables directly. A browser cli
 
 Authorization is deliberately layered:
 
-1. **Page and action identity checks.** Protected pages redirect without a user; every mutation calls `getUser()` again.
+1. **Page and action identity checks.** Protected pages redirect without a user; each activity, time-block, and timezone mutation calls `getUser()` again.
 2. **Explicit query scoping.** Reads and mutations commonly include `user_id = user.id` alongside a record identifier.
 3. **PostgreSQL RLS.** Policies scope application rows to `auth.uid()`.
 4. **SQL grants.** Later migrations restrict authenticated operations and writable columns, while anonymous roles have no table access.
@@ -223,9 +223,9 @@ Manual-entry and edit controls use the browser's current timezone because `datet
 
 Server Actions return small discriminated success/error results for expected outcomes. Known domain violations such as duplicate activity names or overlapping time blocks are converted into user-facing messages rather than reported as system faults.
 
-Unexpected Supabase and mutation errors are captured with Sentry operation tags. Authentication reporting suppresses expected 4xx user-flow errors and records server or status-less failures. The analytics adapter captures RPC failures and throws a generic error, which is handled by the analytics route error boundary. A global error component reports otherwise unhandled rendering errors.
+Instrumented failures in authentication flows, Server Actions, profile-timezone loading, and analytics RPC access are captured with Sentry operation tags. Authentication reporting suppresses expected 4xx user-flow errors and records server or status-less failures. The analytics adapter captures RPC failures and throws a generic error, which is handled by the analytics route error boundary. A global error component reports otherwise unhandled rendering errors. Dashboard and history page-query failures receive user-facing fallback states but are not all explicitly captured at their query sites.
 
-Sentry is initialized for browser, Node.js, and edge execution contexts through [`src/instrumentation-client.ts`](../src/instrumentation-client.ts), [`src/instrumentation.ts`](../src/instrumentation.ts), and the root Sentry configuration files. Request errors are connected through `onRequestError`, and client router transitions are instrumented. The current configuration enables logs and samples all traces.
+Sentry is initialized for browser, Node.js, and edge execution contexts through [`src/instrumentation-client.ts`](../src/instrumentation-client.ts), [`src/instrumentation.ts`](../src/instrumentation.ts), and the root Sentry configuration files. Request errors are connected through `onRequestError`, and client router transitions are instrumented. The current configuration enables logs and sets `tracesSampleRate` to `1` in all three runtime configurations.
 
 ## Runtime and Deployment Boundaries
 
@@ -237,7 +237,7 @@ No hosting provider, production Supabase topology, region, SMTP configuration, o
 
 ## Architectural Tradeoffs
 
-- **Server-first data access:** keeping table access in Server Components and Server Actions reduces browser data-access code and centralizes validation, while RLS still protects every request. It also couples page and action modules directly to Supabase because there is no repository layer.
+- **Server-first data access:** keeping table access in Server Components and Server Actions reduces browser data-access code and centralizes validation, while RLS still protects application-table requests. It also couples page and action modules directly to Supabase because there is no repository layer.
 - **Database-centered invariants:** overlap, range validity, ownership, and tenancy survive alternative callers and concurrency. This pushes important behavior into migrations and makes local database testing part of architectural verification.
 - **Browser-local active timer:** no incomplete database row or background synchronization is required, and failed stops can retry exactly. The cost is that active state is device-local, best-effort, and deliberately expires.
 - **Single-row paused sessions:** active duration can differ from wall-clock range, preserving pause semantics without storing segments. The complete range—not just active segments—participates in overlap prevention.

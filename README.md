@@ -51,6 +51,12 @@ TimeMetrics uses a server-first Next.js architecture:
 - **Comparison-period analytics:** seven- and 30-day ranges are compared with the immediately preceding equal-length range, including duration, active-day, session, average-session, and per-activity changes.
 - **Database security tests:** transactional pgTAP tests exercise RLS ownership, anonymous denial, table and column grants, cross-tenant references, deletion semantics, and analytics isolation.
 
+## Documentation
+
+- [Architecture](docs/architecture.md) explains runtime responsibilities and the main request, timer, authentication, and analytics flows.
+- [Database](docs/database.md) documents the schema, PostgreSQL invariants, grants, RLS policies, triggers, and RPCs.
+- [Testing](docs/testing.md) describes the implemented Vitest and pgTAP coverage and how to run it.
+
 ## Local development
 
 ### Prerequisites
