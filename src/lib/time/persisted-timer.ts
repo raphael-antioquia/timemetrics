@@ -10,7 +10,8 @@ const MAX_CLOCK_SKEW_MILLISECONDS =
   5 * 60 * 1000;
 
 export type PersistedTimer = {
-  version: 1;
+  version: 2;
+  ownerUserId: string;
   sessionActivityId: string;
   sessionStartedAt: number;
   segmentStartedAt: number | null;
@@ -54,7 +55,9 @@ function isPersistedTimer(
   const timer = value as Record<string, unknown>;
 
   if (
-    timer.version !== 1 ||
+    timer.version !== 2 ||
+    typeof timer.ownerUserId !== "string" ||
+    !UUID_PATTERN.test(timer.ownerUserId) ||
     typeof timer.sessionActivityId !== "string" ||
     !UUID_PATTERN.test(timer.sessionActivityId) ||
     typeof timer.sessionStartedAt !== "number" ||
@@ -87,6 +90,7 @@ function isPersistedTimer(
 export function parsePersistedTimer(
   raw: string | null,
   now: number,
+  activeUserId: string,
 ): PersistedTimer | null {
   if (raw === null) {
     return null;
@@ -96,6 +100,10 @@ export function parsePersistedTimer(
     const parsed: unknown = JSON.parse(raw);
 
     if (!isPersistedTimer(parsed)) {
+      return null;
+    }
+
+    if (parsed.ownerUserId !== activeUserId) {
       return null;
     }
 
@@ -137,7 +145,9 @@ export function parsePersistedTimer(
   }
 }
 
-export function readPersistedTimer(): PersistedTimer | null {
+export function readPersistedTimer(
+  activeUserId: string,
+): PersistedTimer | null {
   try {
     const raw =
       window.localStorage.getItem(STORAGE_KEY);
@@ -145,6 +155,7 @@ export function readPersistedTimer(): PersistedTimer | null {
     const timer = parsePersistedTimer(
       raw,
       Date.now(),
+      activeUserId,
     );
 
     if (raw !== null && timer === null) {

@@ -10,7 +10,7 @@ Timers are useful while work is happening, while manual logs are useful after th
 
 - Email and password authentication through Supabase Auth.
 - Activity creation, renaming, and deletion.
-- A start, pause, resume, and stop timer that survives page reloads through browser storage.
+- A start, pause, resume, and stop timer that survives page reloads through user-scoped browser storage.
 - Retry support for timer sessions that fail to save, including reassignment when the original activity was deleted.
 - Manual time entry plus editing and deletion of existing sessions.
 - A dashboard with today's tracked total and recent sessions.
@@ -44,6 +44,7 @@ TimeMetrics uses a server-first Next.js architecture:
 ## Technical highlights
 
 - **Layered authorization:** server-side identity checks and explicit ownership filters are backed by RLS policies on every application table. Authenticated table privileges are further restricted by operation and column, and anonymous roles have no table access.
+- **User-scoped timer persistence:** persisted timer state includes the authenticated user ID and is restored only for that user. Legacy or foreign-user timer payloads are rejected and removed, while normal sign-out clearing provides an additional layer of cleanup.
 - **Database-enforced time integrity:** PostgreSQL requires a positive duration, a valid start/end range, and a duration no greater than that range. A GiST exclusion constraint prevents overlapping time blocks for the same user while allowing adjacent sessions.
 - **Tenant-safe relationships:** a composite foreign key prevents a time block from referencing another user's activity, independently of application checks and RLS.
 - **History preservation:** deleting an activity sets the reference on existing time blocks to `NULL`; the time remains in history and analytics as `Unlabeled`.
@@ -110,7 +111,7 @@ Database tests require the local Supabase stack to be running.
 
 ## Testing
 
-The Vitest suite covers the analytics transformation and comparison logic, calendar and timezone-sensitive date utilities, duration formatting, UUID validation, profile-timezone loading, and persisted-timer validation.
+The Vitest suite covers the analytics transformation and comparison logic, calendar and timezone-sensitive date utilities, duration formatting, UUID validation, profile-timezone loading, and persisted-timer validation, including legacy payload rejection and authenticated-user ownership checks.
 
 The pgTAP suite tests the database as real `anon` and `authenticated` roles where appropriate. It verifies RLS, least-privilege grants, ownership isolation, foreign-key tenancy, activity deletion behavior, and analytics RPC isolation. GitHub Actions runs linting, type checking, Vitest, a production build, and the database suite on pushes and pull requests to `main`.
 

@@ -31,6 +31,7 @@ type Activity = {
 
 type ActivityTimerProps = {
   activities: Activity[];
+  userId: string;
 };
 
 function formatElapsed(totalSeconds: number): string {
@@ -47,6 +48,7 @@ function formatElapsed(totalSeconds: number): string {
 
 export function ActivityTimer({
   activities,
+  userId,
 }: ActivityTimerProps) {
   const [selectedActivityId, setSelectedActivityId] =
     useState<string | null>(null);
@@ -89,7 +91,7 @@ export function ActivityTimer({
     unavailable during the server render. The server renders the idle state,
     then this effect intentionally restores persisted client state once mounted. */
   useEffect(() => {
-    const persistedTimer = readPersistedTimer();
+    const persistedTimer = readPersistedTimer(userId);
 
     if (!persistedTimer) {
       return;
@@ -121,7 +123,10 @@ export function ActivityTimer({
         ? "paused"
         : "running",
     );
-  }, []);
+    // userId is stable for the lifetime of this mount: an account change
+    // unmounts the component via navigation. The dependency is here because
+    // the effect reads userId, not because we support in-place user changes.
+  }, [userId]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
@@ -220,7 +225,8 @@ export function ActivityTimer({
     const startedAt = Date.now();
 
     writePersistedTimer({
-      version: 1,
+      version: 2,
+      ownerUserId: userId,
       sessionActivityId: selectedActivityId,
       sessionStartedAt: startedAt,
       segmentStartedAt: startedAt,
@@ -257,7 +263,8 @@ export function ActivityTimer({
       accumulatedMilliseconds + completedSegment;
 
     writePersistedTimer({
-      version: 1,
+      version: 2,
+      ownerUserId: userId,
       sessionActivityId,
       sessionStartedAt,
       segmentStartedAt: null,
@@ -287,7 +294,8 @@ export function ActivityTimer({
     const resumedAt = Date.now();
 
     writePersistedTimer({
-      version: 1,
+      version: 2,
+      ownerUserId: userId,
       sessionActivityId,
       sessionStartedAt,
       segmentStartedAt: resumedAt,
@@ -315,7 +323,8 @@ export function ActivityTimer({
         sessionStartedAt !== null
       ) {
         writePersistedTimer({
-          version: 1,
+          version: 2,
+          ownerUserId: userId,
           sessionActivityId,
           sessionStartedAt,
           segmentStartedAt: null,
@@ -367,7 +376,8 @@ export function ActivityTimer({
     };
 
     writePersistedTimer({
-      version: 1,
+      version: 2,
+      ownerUserId: userId,
       sessionActivityId,
       sessionStartedAt,
       segmentStartedAt: null,
@@ -574,7 +584,8 @@ export function ActivityTimer({
               };
 
               writePersistedTimer({
-                version: 1,
+                version: 2,
+                ownerUserId: userId,
                 sessionActivityId:
                   replacementActivityId,
                 sessionStartedAt,
