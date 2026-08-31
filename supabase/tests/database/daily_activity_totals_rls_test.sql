@@ -132,6 +132,9 @@ values
 -- its underlying tables with anon's deliberately empty table grants.
 set local role anon;
 
+-- Pin the Postgres-internal message because both function EXECUTE privileges
+-- and underlying table privileges use 42501. This assertion specifically
+-- proves that the invoker function reaches, then is denied by, time_blocks.
 select throws_ok(
   $$
     select *
@@ -142,7 +145,7 @@ select throws_ok(
     )
   $$,
   '42501',
-  null::text,
+  'permission denied for table time_blocks',
   'anon cannot read analytics through the RPC'
 );
 

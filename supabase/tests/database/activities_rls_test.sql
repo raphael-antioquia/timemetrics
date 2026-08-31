@@ -65,6 +65,8 @@ select lives_ok(
 );
 
 -- Alice cannot create an activity owned by Bob.
+-- Pin the Postgres-internal message because both grants and RLS use 42501;
+-- this assertion specifically proves rejection by the RLS policy.
 select throws_ok(
   $$
     insert into public.activities (
@@ -77,7 +79,7 @@ select throws_ok(
     )
   $$,
   '42501',
-  null::text,
+  'new row violates row-level security policy for table "activities"',
   'Alice cannot create an activity owned by Bob'
 );
 

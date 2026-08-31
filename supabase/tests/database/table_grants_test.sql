@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(44);
+select plan(46);
 
 -- ---------------------------------------------------------------------------
 -- Harness sanity.
@@ -403,6 +403,33 @@ select is_empty(
       and a.grantee in ('anon'::regrole, 0)
   $$,
   'no column in public grants privileges to anon or PUBLIC'
+);
+
+-- ---------------------------------------------------------------------------
+-- Default privileges for future tables.
+--
+-- The schema-wide sweep above only covers existing relations. Create a table
+-- inside this transaction to prove that tables later created by postgres do
+-- not inherit client grants. The rls_auto_enable event trigger may emit a LOG
+-- line here; the table and its RLS state are rolled back with this test.
+-- ---------------------------------------------------------------------------
+
+create table public.zz_default_privs_probe (id integer);
+
+select table_privs_are(
+  'public',
+  'zz_default_privs_probe',
+  'anon',
+  array[]::text[],
+  'a newly created public table grants anon nothing'
+);
+
+select table_privs_are(
+  'public',
+  'zz_default_privs_probe',
+  'authenticated',
+  array[]::text[],
+  'a newly created public table grants authenticated nothing'
 );
 
 select * from finish();

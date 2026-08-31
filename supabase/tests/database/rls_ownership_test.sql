@@ -108,6 +108,8 @@ select lives_ok(
 -- Ownership check:
 -- same operation and grants, but Bob's activity must be rejected
 -- by the INSERT WITH CHECK policy.
+-- Pin the Postgres-internal message because both grants and RLS use 42501;
+-- this assertion specifically proves rejection by the RLS policy.
 select throws_ok(
   $$
     insert into public.time_blocks (
@@ -126,7 +128,7 @@ select throws_ok(
     )
   $$,
   '42501',
-  null::text,
+  'new row violates row-level security policy for table "time_blocks"',
   'Alice cannot create a time block against Bob''s activity'
 );
 
@@ -160,6 +162,8 @@ select is(
 -- Ownership check:
 -- Alice still owns the time block, but Bob owns the proposed activity.
 -- The UPDATE WITH CHECK policy must reject the new row.
+-- Pin the Postgres-internal message because both grants and RLS use 42501;
+-- this assertion specifically proves rejection by the RLS policy.
 select throws_ok(
   $$
     update public.time_blocks
@@ -167,7 +171,7 @@ select throws_ok(
     where id = 'cccccccc-cccc-cccc-cccc-ccccccccccc1'
   $$,
   '42501',
-  null::text,
+  'new row violates row-level security policy for table "time_blocks"',
   'Alice cannot update her time block to Bob''s activity'
 );
 
