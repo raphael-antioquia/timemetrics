@@ -80,7 +80,7 @@ Client Components own behavior requiring browser APIs or immediate interaction:
 - Conversion of `datetime-local` input into JavaScript `Date` values.
 - Browser timezone detection.
 - Calling Server Actions and presenting their structured results.
-- Clearing the persisted timer before sign-out to prevent it carrying into another account.
+- Scoping persisted timer state to the authenticated user and rejecting legacy or foreign-user state during restoration. Normal sign-out also clears persisted timer state as defense-in-depth.
 
 Client Components do not currently query Supabase tables directly. A browser client factory exists in [`src/lib/supabase/client.ts`](../src/lib/supabase/client.ts), but it has no consumers in the implemented application.
 
@@ -160,7 +160,7 @@ Deleting an activity does not delete historical time. PostgreSQL nulls the activ
 
 The timer in [`src/components/timer/activity-timer.tsx`](../src/components/timer/activity-timer.tsx) has three UI states: idle, running, and paused.
 
-1. **Start.** The user selects an activity. The client records both the overall session start and the current active-segment start with `Date.now()`, then persists versioned timer state.
+1. **Start.** The user selects an activity. The client records both the overall session start and the current active-segment start with `Date.now()`, then persists versioned timer state scoped to the authenticated user.
 2. **Pause.** The client adds the completed segment to accumulated active milliseconds and clears the segment start. Wall-clock time may continue, but active duration does not.
 3. **Resume.** A new active segment begins while the original session start is retained.
 4. **Stop.** The client closes the final segment, floors active milliseconds to whole seconds, and discards sessions shorter than one second. It constructs a payload containing the full start/end range and the accumulated active duration.
@@ -169,7 +169,7 @@ The timer in [`src/components/timer/activity-timer.tsx`](../src/components/timer
 7. **Database enforcement.** PostgreSQL rechecks its time and tenancy invariants. An overlap exclusion violation is translated into the expected “overlaps an existing session” result.
 8. **Completion or retry.** Success clears browser timer state and revalidates the dashboard. Failure leaves the stopped payload available for retry.
 
-The persisted representation is validated on restoration by [`src/lib/time/persisted-timer.ts`](../src/lib/time/persisted-timer.ts). It rejects malformed state, unsupported versions, impossible accumulated time, excessive clock skew, and sessions older than 24 hours. Storage remains best-effort: the in-memory timer continues if browser storage is unavailable.
+The persisted representation is validated on restoration by [`src/lib/time/persisted-timer.ts`](../src/lib/time/persisted-timer.ts). Version 2 payloads include an `ownerUserId`, and a timer is restored only when that owner matches the currently authenticated user. Legacy payloads without ownership information, foreign-user payloads, malformed state, unsupported versions, impossible accumulated time, excessive clock skew, and sessions older than 24 hours are rejected. Invalid, legacy, or foreign-user state is removed from `localStorage` rather than retained across account transitions. Normal sign-out also clears persisted timer state, but ownership validation on restoration is the primary cross-account control. Storage remains best-effort: the in-memory timer continues if browser storage is unavailable.
 
 No in-progress row is created in PostgreSQL. This avoids coordinating partial timer state with the database, but a running timer is local to one browser and is not synchronized across devices. Because the stored time block spans the overall start and end while recording only active seconds, paused gaps are part of the database range used for overlap detection.
 
@@ -239,7 +239,7 @@ No hosting provider, production Supabase topology, region, SMTP configuration, o
 
 - **Server-first data access:** keeping table access in Server Components and Server Actions reduces browser data-access code and centralizes validation, while RLS still protects application-table requests. It also couples page and action modules directly to Supabase because there is no repository layer.
 - **Database-centered invariants:** overlap, range validity, ownership, and tenancy survive alternative callers and concurrency. This pushes important behavior into migrations and makes local database testing part of architectural verification.
-- **Browser-local active timer:** no incomplete database row or background synchronization is required, and failed stops can retry exactly. The cost is that active state is device-local, best-effort, and deliberately expires.
+- **Browser-local active timer:** no incomplete database row or background synchronization is required, and failed stops can retry exactly. Persisted state is scoped to the authenticated user and foreign or legacy payloads are discarded rather than carried across accounts. The cost is that active state is device-local, best-effort, deliberately expires, and may be lost during an abnormal account transition.
 - **Single-row paused sessions:** active duration can differ from wall-clock range, preserving pause semantics without storing segments. The complete range—not just active segments—participates in overlap prevention.
 - **Aggregate SQL plus pure TypeScript shaping:** PostgreSQL filters and groups near the data, while deterministic TypeScript fills gaps and computes comparisons. This avoids transferring raw time blocks for analytics but creates an explicit RPC contract.
 - **Profile timezone for reporting:** a stored timezone makes server rendering and SQL agree about calendar boundaries. Browser-local editing can still diverge from the profile timezone after travel or manual browser changes.
@@ -251,7 +251,7 @@ No hosting provider, production Supabase topology, region, SMTP configuration, o
 - Use Next.js Server Components for authenticated reads and Server Actions for product mutations.
 - Execute application database requests as the signed-in Supabase user so RLS and grants remain active.
 - Treat PostgreSQL as the final authority for ownership, tenancy, time validity, and overlap prevention.
-- Keep an active timer in versioned browser storage and persist only completed sessions.
+- Keep an active timer in versioned, user-scoped browser storage and persist only completed sessions.
 - Represent pauses as active duration within one overall time range rather than as separate database segments.
 - Perform timezone-aware filtering and grouping in SQL, then build complete ranges and comparisons in pure TypeScript.
 - Preserve historical time when activities are deleted by allowing unlabeled time blocks.
