@@ -16,6 +16,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  clearPersistedTimer,
+  readPersistedTimer,
+  writePersistedTimer,
+} from "@/lib/time/persisted-timer";
 
 type TimerStatus = "idle" | "running" | "paused";
 
@@ -45,9 +50,9 @@ export function ActivityTimer({
 }: ActivityTimerProps) {
   const [selectedActivityId, setSelectedActivityId] =
     useState<string | null>(null);
-  
+
   const [sessionActivityId, setSessionActivityId] =
-  useState<string | null>(null);
+    useState<string | null>(null);
 
   const [
     replacementActivityId,
@@ -78,6 +83,46 @@ export function ActivityTimer({
   // Keeps the exact Stop payload when a save fails.
   const [pendingTimeBlock, setPendingTimeBlock] =
     useState<CreateTimeBlockInput | null>(null);
+
+  /* eslint-disable react-hooks/set-state-in-effect --
+    Timer restoration must happen after hydration because localStorage is
+    unavailable during the server render. The server renders the idle state,
+    then this effect intentionally restores persisted client state once mounted. */
+  useEffect(() => {
+    const persistedTimer = readPersistedTimer();
+
+    if (!persistedTimer) {
+      return;
+    }
+
+    const restoredAt = Date.now();
+
+    setSelectedActivityId(
+      persistedTimer.sessionActivityId,
+    );
+    setSessionActivityId(
+      persistedTimer.sessionActivityId,
+    );
+    setSessionStartedAt(
+      persistedTimer.sessionStartedAt,
+    );
+    setSegmentStartedAt(
+      persistedTimer.segmentStartedAt,
+    );
+    setAccumulatedMilliseconds(
+      persistedTimer.accumulatedMilliseconds,
+    );
+    setPendingTimeBlock(
+      persistedTimer.pendingTimeBlock,
+    );
+    setNow(restoredAt);
+    setStatus(
+      persistedTimer.segmentStartedAt === null
+        ? "paused"
+        : "running",
+    );
+  }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (status !== "running") {
@@ -123,13 +168,14 @@ export function ActivityTimer({
 
   const pendingActivityWasDeleted =
     pendingTimeBlock !== null &&
-    saveResult?.status === "error" &&
     !activities.some(
       (activity) =>
         activity.id === pendingTimeBlock.activityId,
     );
 
   function resetTimer(resetAt: number) {
+    clearPersistedTimer();
+
     setSelectedActivityId(null);
     setSessionActivityId(null);
     setReplacementActivityId(null);
@@ -173,6 +219,15 @@ export function ActivityTimer({
 
     const startedAt = Date.now();
 
+    writePersistedTimer({
+      version: 1,
+      sessionActivityId: selectedActivityId,
+      sessionStartedAt: startedAt,
+      segmentStartedAt: startedAt,
+      accumulatedMilliseconds: 0,
+      pendingTimeBlock: null,
+    });
+
     setSaveResult(null);
     setPendingTimeBlock(null);
     setSessionActivityId(selectedActivityId);
@@ -187,6 +242,8 @@ export function ActivityTimer({
     if (
       status !== "running" ||
       segmentStartedAt === null ||
+      sessionActivityId === null ||
+      sessionStartedAt === null ||
       isSaving
     ) {
       return;
@@ -196,22 +253,47 @@ export function ActivityTimer({
     const completedSegment =
       pausedAt - segmentStartedAt;
 
-    setAccumulatedMilliseconds(
-      (previousMilliseconds) =>
-        previousMilliseconds + completedSegment,
-    );
+    const nextAccumulatedMilliseconds =
+      accumulatedMilliseconds + completedSegment;
 
+    writePersistedTimer({
+      version: 1,
+      sessionActivityId,
+      sessionStartedAt,
+      segmentStartedAt: null,
+      accumulatedMilliseconds:
+        nextAccumulatedMilliseconds,
+      pendingTimeBlock: null,
+    });
+
+    setAccumulatedMilliseconds(
+      nextAccumulatedMilliseconds,
+    );
     setSegmentStartedAt(null);
     setNow(pausedAt);
     setStatus("paused");
   }
 
   function handleResume() {
-    if (status !== "paused" || isSaving) {
+    if (
+      status !== "paused" ||
+      sessionActivityId === null ||
+      sessionStartedAt === null ||
+      isSaving
+    ) {
       return;
     }
 
     const resumedAt = Date.now();
+
+    writePersistedTimer({
+      version: 1,
+      sessionActivityId,
+      sessionStartedAt,
+      segmentStartedAt: resumedAt,
+      accumulatedMilliseconds,
+      pendingTimeBlock: null,
+    });
 
     // A failed Stop can be cancelled by resuming.
     setPendingTimeBlock(null);
@@ -228,6 +310,20 @@ export function ActivityTimer({
 
     // Retry the exact same stopped session after a failure.
     if (pendingTimeBlock) {
+      if (
+        sessionActivityId !== null &&
+        sessionStartedAt !== null
+      ) {
+        writePersistedTimer({
+          version: 1,
+          sessionActivityId,
+          sessionStartedAt,
+          segmentStartedAt: null,
+          accumulatedMilliseconds,
+          pendingTimeBlock,
+        });
+      }
+
       await saveTimeBlock(pendingTimeBlock);
       return;
     }
@@ -269,6 +365,16 @@ export function ActivityTimer({
       endedAt: new Date(stoppedAt).toISOString(),
       durationSeconds,
     };
+
+    writePersistedTimer({
+      version: 1,
+      sessionActivityId,
+      sessionStartedAt,
+      segmentStartedAt: null,
+      accumulatedMilliseconds:
+        finalDurationMilliseconds,
+      pendingTimeBlock: input,
+    });
 
     // Freeze the timer at the moment Stop was pressed.
     setAccumulatedMilliseconds(
@@ -384,44 +490,46 @@ export function ActivityTimer({
             type="button"
             variant="outline"
             onClick={handleResume}
-            disabled={isSaving || pendingActivityWasDeleted}
+            disabled={
+              isSaving || pendingActivityWasDeleted
+            }
             className="w-full sm:w-auto"
           >
             Resume
           </Button>
         )}
 
-        {status !== "idle" && 
+        {status !== "idle" &&
           !pendingActivityWasDeleted && (
-          <Button
-            type="button"
-            variant={
-              pendingTimeBlock
-                ? "default"
-                : "destructive"
-            }
-            onClick={() => void handleStop()}
-            disabled={isSaving}
-            className="w-full sm:w-auto"
-          >
-            {isSaving
-              ? "Saving..."
-              : pendingTimeBlock
-                ? "Retry save"
-                : "Stop"}
-          </Button>
-        )}
+            <Button
+              type="button"
+              variant={
+                pendingTimeBlock
+                  ? "default"
+                  : "destructive"
+              }
+              onClick={() => void handleStop()}
+              disabled={isSaving}
+              className="w-full sm:w-auto"
+            >
+              {isSaving
+                ? "Saving..."
+                : pendingTimeBlock
+                  ? "Retry save"
+                  : "Stop"}
+            </Button>
+          )}
       </div>
 
       {pendingActivityWasDeleted && (
         <div className="space-y-3">
-          <p 
+          <p
             role="alert"
             className="text-muted-foreground text-sm"
           >
-            This session&apos;s activity was deleted. Your time is
-            still preserved. Choose another activity to record this
-            session under.
+            This session&apos;s activity was deleted. Your
+            time is still preserved. Choose another
+            activity to record this session under.
           </p>
 
           <Select
@@ -454,7 +562,8 @@ export function ActivityTimer({
             onClick={() => {
               if (
                 !pendingTimeBlock ||
-                !replacementActivityId
+                !replacementActivityId ||
+                sessionStartedAt === null
               ) {
                 return;
               }
@@ -464,12 +573,31 @@ export function ActivityTimer({
                 activityId: replacementActivityId,
               };
 
-              setSessionActivityId(replacementActivityId);
-              setSelectedActivityId(replacementActivityId);
-              setPendingTimeBlock(reassignedTimeBlock);
+              writePersistedTimer({
+                version: 1,
+                sessionActivityId:
+                  replacementActivityId,
+                sessionStartedAt,
+                segmentStartedAt: null,
+                accumulatedMilliseconds,
+                pendingTimeBlock:
+                  reassignedTimeBlock,
+              });
+
+              setSessionActivityId(
+                replacementActivityId,
+              );
+              setSelectedActivityId(
+                replacementActivityId,
+              );
+              setPendingTimeBlock(
+                reassignedTimeBlock,
+              );
               setReplacementActivityId(null);
 
-              void saveTimeBlock(reassignedTimeBlock);
+              void saveTimeBlock(
+                reassignedTimeBlock,
+              );
             }}
           >
             {isSaving
