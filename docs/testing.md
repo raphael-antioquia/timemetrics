@@ -3,7 +3,7 @@
 TimeMetrics has two automated test layers:
 
 1. a Vitest suite for TypeScript library behavior and selected server-side adapters; and
-2. a PostgreSQL/pgTAP suite for database authorization, privileges, relational integrity, and RPC isolation.
+2. a PostgreSQL/pgTAP suite for database authorization, privileges, relational integrity, profile-timezone integrity, and RPC isolation.
 
 These layers run independently. There is currently no browser, component, or end-to-end test suite connecting the rendered Next.js application to a real Supabase instance.
 
@@ -11,11 +11,11 @@ These layers run independently. There is currently no browser, component, or end
 
 | Layer | Runs against | Responsibility |
 | --- | --- | --- |
-| Vitest | Node.js with mocked external boundaries where needed | Calendar and timezone utilities, analytics transformations and comparisons, timer-state validation, formatting, UUID validation, and the behavior of selected Supabase-facing helpers. |
-| pgTAP | The local PostgreSQL 17 instance managed by Supabase | RLS behavior, SQL grants, Auth identity simulation, cross-tenant isolation, foreign-key tenancy, deletion semantics, and analytics function security. |
+| Vitest | Node.js with mocked external boundaries where needed | Calendar and timezone utilities, profile-timezone validation/loading, analytics transformations and comparisons, timer-state validation, formatting, UUID validation, and the behavior of selected Supabase-facing helpers. |
+| pgTAP | The local PostgreSQL 17 instance managed by Supabase | RLS behavior, SQL grants, Auth identity simulation, cross-tenant isolation, foreign-key tenancy, profile-timezone integrity, deletion semantics, and analytics function security. |
 | CI checks | GitHub Actions | Runs linting, TypeScript checking, Vitest, a production build, and the pgTAP suite in separate jobs. |
 
-The repository structure suggests a deliberate boundary: deterministic calculations are tested as fast TypeScript units, while rules implemented by PostgreSQL are tested inside PostgreSQL. The latter cannot be established by mocking a Supabase client. A mock can confirm which RPC name or parameters application code uses, but it cannot prove that RLS filters rows, a role lacks a column privilege, or a foreign key rejects a privileged cross-tenant write.
+The repository structure suggests a deliberate boundary: deterministic calculations are tested as fast TypeScript units, while rules implemented by PostgreSQL are tested inside PostgreSQL. The latter cannot be established by mocking a Supabase client. A mock can confirm which RPC name or parameters application code uses, but it cannot prove that RLS filters rows, a role lacks a column privilege, a trigger rejects invalid state, or a foreign key rejects a privileged cross-tenant write.
 
 For the database rules themselves, see [Database](./database.md).
 
@@ -33,10 +33,13 @@ The test process pins `TZ=America/Toronto`, a non-UTC timezone with daylight-sav
 | [`ranges.test.ts`](../src/lib/time/ranges.test.ts) | Seven- and 30-day trailing calendar ranges, local dates on either side of UTC, DST, month/year boundaries, leap day, invalid ranges, and the adjacency/equal-length invariant for previous comparison periods. |
 | [`format-day-label.test.ts`](../src/lib/time/format-day-label.test.ts) | Stable calendar-date labels across week, month, and year boundaries plus malformed or impossible dates. |
 | [`format-duration.test.ts`](../src/lib/time/format-duration.test.ts) | Timer duration formatting, durations beyond 24 hours, analytics minute rounding, and hour-boundary behavior. |
-| [`get-user-timezone.test.ts`](../src/lib/time/get-user-timezone.test.ts) | Profile timezone retrieval and Supabase error capture/rethrow behavior. The Supabase server client and Sentry are mocked. |
+| [`is-allowed-profile-timezone.test.ts`](../src/lib/time/is-allowed-profile-timezone.test.ts) | The application timezone policy for canonical and case-insensitive named zones, invalid identifiers, fixed-offset forms, case-insensitive `Etc/*` rejection, and empty/whitespace input. The suite also characterizes accepted aliases such as `EST` and application-only rejection such as `Factory`. |
+| [`get-user-timezone.test.ts`](../src/lib/time/get-user-timezone.test.ts) | Profile timezone retrieval, invalid stored-value detection with UTC fallback and Sentry warning, and Supabase error capture/rethrow behavior. The Supabase server client and Sentry are mocked. |
 | [`persisted-timer.test.ts`](../src/lib/time/persisted-timer.test.ts) | Restoration and rejection of browser-persisted running, paused, and pending-stop timer state, including authenticated-user ownership, legacy version-1 payload rejection, foreign-user rejection, invalid owner IDs, malformed JSON, unsupported schema versions, UUIDs, timestamp ordering, accumulated-time bounds, five-minute clock-skew tolerance, 24-hour expiry, and pending payload validation. |
 
 The DST cases in `format-datetime-local.test.ts` are characterization tests as well as regression tests. They make the platform behavior explicit: a `datetime-local` value cannot preserve which occurrence of a repeated fall-back hour produced it, and JavaScript normalizes a nonexistent spring-forward wall time forward.
+
+The profile-timezone tests deliberately do not claim that JavaScript and PostgreSQL recognize identical timezone sets. `isAllowedProfileTimezone` defines the application-side policy, while the database suite verifies the PostgreSQL-side write invariant. `getUserTimezone()` is the defensive drift detector between those runtimes.
 
 ### Analytics and comparison coverage
 
@@ -87,6 +90,7 @@ The SQL tests live in [`supabase/tests/database`](../supabase/tests/database). E
 | [`smoke_test.sql`](../supabase/tests/database/smoke_test.sql) | Confirms the pgTAP harness executes. |
 | [`rls_harness_test.sql`](../supabase/tests/database/rls_harness_test.sql) | Asserts every current `public` table has RLS enabled and proves the simulated session uses the intended `authenticated` role and `auth.uid()`. |
 | [`profiles_rls_test.sql`](../supabase/tests/database/profiles_rls_test.sql) | Automatic profile creation through the Auth trigger, own-profile visibility, own-timezone updates, isolation from another user's profile, and denial of `plan_id` updates by column privilege. |
+| [`profile_timezone_invariant_test.sql`](../supabase/tests/database/profile_timezone_invariant_test.sql) | Runs through the real authenticated write boundary, verifies canonical and lowercase named timezones persist, and rejects unresolvable identifiers, case-insensitive `Etc/*` forms, fixed-offset forms, empty strings, and whitespace-only values with SQLSTATE `22023`. |
 | [`activities_rls_test.sql`](../supabase/tests/database/activities_rls_test.sql) | Own-row select/insert/update/delete behavior and isolation from another user's activity. |
 | [`time_blocks_rls_test.sql`](../supabase/tests/database/time_blocks_rls_test.sql) | Own-row select/insert/update/delete behavior and isolation from another user's time block. |
 | [`rls_ownership_test.sql`](../supabase/tests/database/rls_ownership_test.sql) | Activity ownership checks in time-block insert/update RLS policies. |
@@ -111,19 +115,20 @@ set local role authenticated;
 
 Several tests use `RESET ROLE` temporarily to inspect physical database state after an operation. This distinguishes a row that remained unchanged from a row that merely became invisible through RLS. The constraint-layer tenancy test deliberately remains `postgres`: if it used `authenticated`, RLS could reject the write first and mask a missing foreign-key guarantee.
 
-Tests also pin SQLSTATEs or PostgreSQL error messages where necessary to distinguish privilege denial from RLS denial when both use `42501`. The cross-tenant constraint test expects foreign-key violation `23503`.
+Tests also pin SQLSTATEs or PostgreSQL error messages where necessary to distinguish privilege denial from RLS denial when both use `42501`. The cross-tenant constraint test expects foreign-key violation `23503`. The profile-timezone invariant test pins SQLSTATE `22023` and the stable message `invalid profile timezone` so product-invalid values share one database error contract even when the rejection reason differs.
 
 ### Why these tests belong in PostgreSQL
 
-RLS policies, grants, triggers, and constraints are security boundaries even if application validation is bypassed. Testing them through pgTAP verifies the deployed database objects and PostgreSQL role semantics directly:
+RLS policies, grants, triggers, and constraints are security and integrity boundaries even if application validation is bypassed. Testing them through pgTAP verifies the deployed database objects and PostgreSQL role semantics directly:
 
 - role and column grants are read from PostgreSQL's catalogs;
 - RLS runs against `auth.uid()` under the real `authenticated` role;
+- profile-timezone writes exercise the real trigger and validator;
 - cross-tenant writes are attempted against the real policies and foreign keys;
 - privileged inspection proves that denied updates/deletes did not change hidden rows; and
 - the analytics function is checked for invoker security and tenant-isolated output.
 
-An application-only test with a mocked Supabase response could pass while a migration omitted RLS, broadened a grant, changed a function to `SECURITY DEFINER`, or weakened a foreign key. The pgTAP layer is what protects against those database-specific regressions.
+An application-only test with a mocked Supabase response could pass while a migration omitted RLS, broadened a grant, removed the timezone trigger, changed a function to `SECURITY DEFINER`, or weakened a foreign key. The pgTAP layer is what protects against those database-specific regressions.
 
 ## Running the Tests
 

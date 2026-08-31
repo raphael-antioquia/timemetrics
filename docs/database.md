@@ -47,7 +47,7 @@ The explicit `time_blocks_user_started_at_idx` index orders `started_at` descend
 
 ## Business Invariants
 
-These constraints are defined in the [baseline migration](../supabase/migrations/20260828161747_baseline.sql) and remain effective when normal application validation is bypassed.
+These constraints and trigger-enforced rules are defined by the ordered migrations and remain effective when normal application validation is bypassed.
 
 ### Names and identity
 
@@ -93,13 +93,19 @@ The constraint depends on the `btree_gist` extension, created in the `extensions
 
 `handle_new_user` is `SECURITY DEFINER`, has an empty `search_path`, and fully qualifies its table reference. This lets the Auth trigger create the profile despite profile RLS without exposing profile creation as a client operation. Public execution is revoked; the function is granted to `service_role` and, because it returns `trigger`, is used through its trigger rather than as an application RPC. Profile isolation and automatic creation are verified in [`profiles_rls_test.sql`](../supabase/tests/database/profiles_rls_test.sql).
 
+Profile timezone writes are additionally protected by `profiles_enforce_timezone`, a `BEFORE INSERT OR UPDATE OF timezone` trigger. It calls the security-invoker `enforce_profile_timezone()` trigger function, which delegates validation to `is_allowed_profile_timezone(text)` and raises SQLSTATE `22023` with the stable message `invalid profile timezone` when the value is rejected.
+
+Because the trigger function is `SECURITY INVOKER`, a role that writes `profiles.timezone` must also be able to execute `is_allowed_profile_timezone(text)`. The migration explicitly grants that helper to `authenticated` and `service_role` while revoking broad `PUBLIC`/`anon` execution. Future database roles granted profile-timezone write access must receive the matching validator privilege as part of that grant change.
+
 Each public table has a `BEFORE UPDATE` trigger that calls `set_updated_at()` and replaces `updated_at` with `now()`. IDs, creation timestamps, and update timestamps are not client-writable under the hardened grants.
 
 ## Timestamp and Timezone Storage
 
 All event and audit timestamps use PostgreSQL `timestamptz`, so stored values represent instants rather than timezone-free local clock readings. Local calendar interpretation happens only when data is queried or displayed.
 
-`profiles.timezone` is non-null text with a `UTC` default. The application validates detected values as IANA timezone names before writing them, but PostgreSQL has no check constraint limiting the column to valid IANA identifiers. If that application validation is bypassed, an authenticated user can store any non-null string in their own profile; an invalid value will cause timezone-dependent SQL to fail when PostgreSQL attempts `AT TIME ZONE` conversion.
+`profiles.timezone` is non-null text with a `UTC` default. The application validates browser-detected values with `Intl.DateTimeFormat` and rejects fixed-offset-style and `Etc/*` identifiers before profile initialization. PostgreSQL independently protects the stored value through `is_allowed_profile_timezone(text)` and the `profiles_enforce_timezone` trigger. The validator rejects the same fixed-offset and `Etc/*` forms case-insensitively and probes PostgreSQL timezone resolution with `AT TIME ZONE`; unsupported values are rejected before they can be persisted.
+
+[`20260831225632_enforce_profile_timezone_invariant.sql`](../supabase/migrations/20260831225632_enforce_profile_timezone_invariant.sql) also backfills any pre-existing row that fails the database validator to `UTC` before installing the trigger. The application retains a defensive read-side validator because PostgreSQL and `Intl.DateTimeFormat` do not recognize exactly the same identifier set. If the application runtime rejects a stored value that PostgreSQL accepted, `getUserTimezone()` reports a warning to Sentry and returns `UTC` rather than allowing timezone-dependent rendering or analytics to fail.
 
 The reporting functions accept timezone text explicitly. They turn local midnight boundaries into instants inside PostgreSQL, so daylight-saving transitions are handled by the database timezone rules rather than by assuming every local day is 24 hours.
 
@@ -107,11 +113,11 @@ The reporting functions accept timezone text explicitly. They turn local midnigh
 
 Database API access is layered:
 
-1. **SQL privileges** determine which relations, operations, and columns a role can attempt.
+1. **SQL privileges** determine which relations, operations, columns, and functions a role can attempt.
 2. **RLS policies** restrict permitted rows to the identity returned by `auth.uid()`.
-3. **Constraints and foreign keys** preserve relational and business invariants regardless of the calling user's identity.
+3. **Constraints, triggers, and foreign keys** preserve relational and business invariants regardless of the calling user's identity.
 
-The final client-facing grants are defined by [`20260830233759_harden_client_table_grants.sql`](../supabase/migrations/20260830233759_harden_client_table_grants.sql) and verified exhaustively by [`table_grants_test.sql`](../supabase/tests/database/table_grants_test.sql).
+The final client-facing table grants are defined by [`20260830233759_harden_client_table_grants.sql`](../supabase/migrations/20260830233759_harden_client_table_grants.sql) and verified exhaustively by [`table_grants_test.sql`](../supabase/tests/database/table_grants_test.sql).
 
 ### Client-facing privileges
 
@@ -141,9 +147,30 @@ For updates, `USING` controls which existing rows are visible to the operation a
 
 An `ensure_rls` event trigger calls `rls_auto_enable()` after public tables are created and attempts to enable RLS automatically. The database test harness also asserts that every current public table has RLS enabled in [`rls_harness_test.sql`](../supabase/tests/database/rls_harness_test.sql).
 
-RLS is not marked `FORCE ROW LEVEL SECURITY`. PostgreSQL table owners, superusers, and Supabase's privileged `service_role` are trusted boundaries and can bypass these policies. User-facing requests must therefore run as `authenticated`, not with a service-role credential. Relational/check/exclusion constraints continue to apply to privileged writes, but RLS-only ownership checks do not.
+RLS is not marked `FORCE ROW LEVEL SECURITY`. PostgreSQL table owners, superusers, and Supabase's privileged `service_role` are trusted boundaries and can bypass these policies. User-facing requests must therefore run as `authenticated`, not with a service-role credential. Relational/check/exclusion constraints and profile-timezone triggers continue to apply to privileged writes, but RLS-only ownership checks do not.
 
 ## Database Functions and RPCs
+
+### `is_allowed_profile_timezone`
+
+`is_allowed_profile_timezone(candidate text)` is a `STABLE`, security-invoker PL/pgSQL helper with an empty `search_path`. It is the database-side definition used both to repair existing profile timezone values during migration and to validate future profile writes.
+
+The function:
+
+1. rejects null input;
+2. rejects fixed-offset-style forms such as `UTC+05:00`, `GMT-04:00`, and bare `+05:00`;
+3. rejects `Etc/*` identifiers case-insensitively; and
+4. probes PostgreSQL timezone resolution with `AT TIME ZONE`, returning false on `invalid_parameter_value`.
+
+PostgreSQL and `Intl.DateTimeFormat` intentionally remain separate validators because their recognized timezone sets are not identical. The application read-side fallback detects that residual cross-runtime drift rather than assuming the two sets are provably equal.
+
+Execution is revoked from `PUBLIC` and `anon` and explicitly granted to `authenticated` and `service_role`, the current roles that may need to write `profiles.timezone` through the security-invoker trigger path.
+
+### `enforce_profile_timezone`
+
+`enforce_profile_timezone()` is a security-invoker trigger function with an empty `search_path`. It calls `is_allowed_profile_timezone(new.timezone)` and raises SQLSTATE `22023` with message `invalid profile timezone` when validation fails. The rejected value is placed in PostgreSQL's `DETAIL` field rather than interpolated into the stable message.
+
+Direct execution is revoked from `PUBLIC`, `anon`, `authenticated`, and `service_role`; clients use it only through the `profiles_enforce_timezone` trigger.
 
 ### `get_daily_activity_totals`
 
@@ -177,6 +204,7 @@ Neither reporting function escalates privileges. Both use explicit `auth.uid()` 
 | --- | --- |
 | `extensions.btree_gist` | Enables the mixed UUID-equality/timestamp-range GiST exclusion constraint used for overlap prevention. |
 | `on_auth_user_created` | Creates a public profile after a Supabase Auth user is inserted. |
+| `profiles_enforce_timezone` | Validates profile timezone values before insert and when `timezone` is updated. |
 | `set_*_updated_at` | Maintains `updated_at` before updates on every public application table. |
 | `ensure_rls` | Automatically enables RLS after a table is created in `public`. |
 
@@ -184,13 +212,14 @@ The trigger functions pin their `search_path` (`''` for application helpers and 
 
 ## Migration Strategy
 
-The current schema is an ordered baseline plus two hardening migrations:
+The current schema is an ordered baseline plus three hardening migrations:
 
 1. [`20260828161747_baseline.sql`](../supabase/migrations/20260828161747_baseline.sql) establishes the complete initial schema, functions, triggers, policies, grants, index, enum, and extension.
 2. [`20260829205816_enforce_time_block_activity_tenancy.sql`](../supabase/migrations/20260829205816_enforce_time_block_activity_tenancy.sql) replaces the single-column activity foreign key with the composite owner-aware relationship.
 3. [`20260830233759_harden_client_table_grants.sql`](../supabase/migrations/20260830233759_harden_client_table_grants.sql) narrows existing table/column privileges and revokes permissive default table grants for future objects.
+4. [`20260831225632_enforce_profile_timezone_invariant.sql`](../supabase/migrations/20260831225632_enforce_profile_timezone_invariant.sql) backfills invalid profile timezone values, installs the shared database validator, and rejects future invalid timezone writes through a trigger.
 
-[`supabase/config.toml`](../supabase/config.toml) enables migrations and targets PostgreSQL 17 for local development. The earlier standalone files [`docs/schema.sql`](./schema.sql), [`docs/rls-policies.sql`](./rls-policies.sql), and [`docs/auto_create_profile_on_signup.sql`](./auto_create_profile_on_signup.sql) do not represent the final cumulative state—for example, they predate completed-only time blocks, profile timezone updates, the composite tenancy foreign key, and hardened grants. They should not be used to provision the current database.
+[`supabase/config.toml`](../supabase/config.toml) enables migrations and targets PostgreSQL 17 for local development. The earlier standalone files [`docs/schema.sql`](./schema.sql), [`docs/rls-policies.sql`](./rls-policies.sql), and [`docs/auto_create_profile_on_signup.sql`](./auto_create_profile_on_signup.sql) do not represent the final cumulative state—for example, they predate completed-only time blocks, profile timezone updates, the composite tenancy foreign key, hardened grants, and database-enforced timezone validity. They should not be used to provision the current database.
 
 ## Database Guarantees
 
@@ -200,6 +229,7 @@ Under the migrated schema, PostgreSQL itself guarantees that:
 - deleting an Auth user cascades through that user's application data;
 - authenticated table access is row-isolated by `auth.uid()` and anonymous roles have no table access;
 - client column grants prevent ownership reassignment, audit-field writes, plan changes, and category-link writes;
+- stored profile timezone values satisfy the database-side TimeMetrics timezone policy, and invalid legacy values are repaired to `UTC` when the invariant migration is applied;
 - a time block cannot reference an activity owned by another user, even when RLS is bypassed;
 - activity deletion preserves historical time blocks and only removes their activity label;
 - stored time blocks are complete, positive-duration ranges whose counted duration does not exceed elapsed time;

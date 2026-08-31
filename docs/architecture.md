@@ -32,9 +32,9 @@ There is no separate application API service or ORM. The only conventional route
 | App Router pages and route handlers | Authenticate requests, load page data, compose feature UI, and handle the authentication callback |
 | Feature components | Present activities and time blocks; manage forms, dialogs, and timer interaction |
 | Server Actions | Validate untrusted inputs, re-check identity and ownership, perform mutations, translate expected database errors, and revalidate affected routes |
-| Time and analytics libraries | Provide calendar-date calculations, formatting, timer persistence validation, aggregate construction, and comparison logic |
+| Time and analytics libraries | Provide calendar-date calculations, formatting, profile-timezone validation, timer persistence validation, aggregate construction, and comparison logic |
 | Supabase integration | Create cookie-aware server clients, refresh sessions in the request proxy, and provide generated database types |
-| PostgreSQL | Store durable data and enforce row ownership, grants, relational integrity, valid time ranges, and non-overlap; aggregate reporting data through SQL functions |
+| PostgreSQL | Store durable data and enforce row ownership, grants, relational integrity, valid profile timezones, valid time ranges, and non-overlap; aggregate reporting data through SQL functions |
 | Observability | Capture instrumented authentication, data-access, mutation, rendering, and request errors through Sentry |
 
 The main feature areas are represented by [`src/components/activities`](../src/components/activities), [`src/components/time-blocks`](../src/components/time-blocks), and [`src/components/timer`](../src/components/timer). Cross-cutting logic lives under [`src/lib`](../src/lib) rather than inside presentation components.
@@ -104,7 +104,7 @@ Authorization is deliberately layered:
 2. **Explicit query scoping.** Reads and mutations commonly include `user_id = user.id` alongside a record identifier.
 3. **PostgreSQL RLS.** Policies scope application rows to `auth.uid()`.
 4. **SQL grants.** Later migrations restrict authenticated operations and writable columns, while anonymous roles have no table access.
-5. **Constraints and foreign keys.** The database independently rejects invalid relationships and time ranges.
+5. **Constraints, triggers, and foreign keys.** The database independently rejects invalid relationships, profile timezone values, and time ranges.
 
 The Next.js layer improves validation and user-facing errors, but it is not the final trust boundary. The public Supabase credential is designed for client-safe use, so rules that must hold regardless of caller are enforced in PostgreSQL.
 
@@ -139,6 +139,7 @@ The Server Actions enforce rules that support the product flow and clear error m
 PostgreSQL is responsible for invariants that must remain true independently of the application path:
 
 - Row ownership and permitted operations.
+- Valid stored profile timezone values.
 - Positive duration and a valid start/end range.
 - Duration not exceeding the range.
 - Non-overlapping time ranges per user.
@@ -146,7 +147,7 @@ PostgreSQL is responsible for invariants that must remain true independently of 
 - Per-user activity-name uniqueness.
 - Referential and deletion behavior.
 
-Some application rules are not database constraints, including the 100-character name limit, future-time restriction, and timezone validity. A direct authenticated Data API caller is therefore constrained by the database rules, not every Server Action rule.
+Some product rules remain application-only, including the 100-character name limit and future-time restriction. A direct authenticated Data API caller is therefore constrained by the database invariants but does not inherit every Server Action rule.
 
 ## Core User and Data Flows
 
@@ -209,21 +210,23 @@ Both reporting paths assign a complete time block to the local calendar day cont
 The system distinguishes instants from calendar dates:
 
 - Time-block starts and ends are exchanged as ISO timestamps and stored as PostgreSQL `timestamptz`.
-- Profiles store a timezone string, defaulting to `UTC`. Application initialization supplies a validated IANA timezone name.
-- On the dashboard, a client initializer runs only while the profile remains UTC. It detects `Intl.DateTimeFormat().resolvedOptions().timeZone` and conditionally updates the profile if no other request has already initialized it.
-- The timezone action rejects fixed-offset-style and `Etc/*` identifiers and verifies candidates with `Intl.DateTimeFormat`.
-- Dashboard and history formatting explicitly use the stored profile timezone.
+- Profiles store a timezone string, defaulting to `UTC`.
+- The browser-supplied initializer validates candidate zones with the shared TypeScript `isAllowedProfileTimezone` rule before attempting an update. Fixed-offset-style and `Etc/*` identifiers are rejected.
+- PostgreSQL independently validates stored profile timezone writes through `is_allowed_profile_timezone(text)` and the `profiles_enforce_timezone` trigger. The migration also backfills pre-existing invalid values to `UTC`.
+- PostgreSQL and `Intl.DateTimeFormat` do not recognize exactly the same timezone identifiers. `getUserTimezone()` therefore revalidates the stored value on read, reports an invalid stored value to Sentry, and safely falls back to `UTC` if the application runtime rejects it.
+- On the dashboard, the client initializer runs only while the effective profile timezone is UTC. It detects `Intl.DateTimeFormat().resolvedOptions().timeZone` and conditionally updates a profile whose stored value is still `UTC`.
+- Dashboard and history formatting explicitly use the effective profile timezone.
 - Analytics range helpers determine the current calendar date in that timezone, then manipulate date-only values with UTC arithmetic so daylight-saving transitions do not turn a seven-day range into the wrong set of dates.
 - PostgreSQL converts the requested local midnight boundaries to instants with `AT TIME ZONE`, making the reporting window follow DST changes in the selected timezone.
 - Date-only analytics labels are formatted through synthetic UTC dates so the label itself cannot shift to a neighboring day.
 
-Manual-entry and edit controls use the browser's current timezone because `datetime-local` has no timezone field. Reporting uses the stored profile timezone. The two are normally aligned after initialization, but the implementation does not currently provide a timezone settings UI or automatically update a non-UTC profile when the browser timezone later changes.
+Manual-entry and edit controls use the browser's current timezone because `datetime-local` has no timezone field. Reporting uses the stored profile timezone unless the defensive read path has fallen back to UTC. The two are normally aligned after initialization, but the implementation does not currently provide a timezone settings UI or automatically update a non-UTC profile when the browser timezone later changes.
 
 ## Error Handling and Observability
 
 Server Actions return small discriminated success/error results for expected outcomes. Known domain violations such as duplicate activity names or overlapping time blocks are converted into user-facing messages rather than reported as system faults.
 
-Instrumented failures in authentication flows, Server Actions, profile-timezone loading, and analytics RPC access are captured with Sentry operation tags. Authentication reporting suppresses expected 4xx user-flow errors and records server or status-less failures. The analytics adapter captures RPC failures and throws a generic error, which is handled by the analytics route error boundary. A global error component reports otherwise unhandled rendering errors. Dashboard and history page-query failures receive user-facing fallback states but are not all explicitly captured at their query sites.
+Instrumented failures in authentication flows, Server Actions, profile-timezone loading, and analytics RPC access are captured with Sentry operation tags. `getUserTimezone()` additionally emits a warning when the stored timezone fails application-side validation and returns `UTC` as a defensive fallback. Authentication reporting suppresses expected 4xx user-flow errors and records server or status-less failures. The analytics adapter captures RPC failures and throws a generic error, which is handled by the analytics route error boundary. A global error component reports otherwise unhandled rendering errors. Dashboard and history page-query failures receive user-facing fallback states but are not all explicitly captured at their query sites.
 
 Sentry is initialized for browser, Node.js, and edge execution contexts through [`src/instrumentation-client.ts`](../src/instrumentation-client.ts), [`src/instrumentation.ts`](../src/instrumentation.ts), and the root Sentry configuration files when `NEXT_PUBLIC_SENTRY_DSN` is configured. Request errors are connected through `onRequestError`, and client router transitions are instrumented. Performance tracing uses a `tracesSampleRate` of `0.1`, while Sentry Logs are disabled. Deployments without a configured DSN do not initialize Sentry.
 
@@ -238,11 +241,11 @@ No hosting provider, production Supabase topology, region, SMTP configuration, o
 ## Architectural Tradeoffs
 
 - **Server-first data access:** keeping table access in Server Components and Server Actions reduces browser data-access code and centralizes validation, while RLS still protects application-table requests. It also couples page and action modules directly to Supabase because there is no repository layer.
-- **Database-centered invariants:** overlap, range validity, ownership, and tenancy survive alternative callers and concurrency. This pushes important behavior into migrations and makes local database testing part of architectural verification.
+- **Database-centered invariants:** overlap, range validity, ownership, tenancy, and stored timezone validity survive alternative callers and concurrency. This pushes important behavior into migrations and makes local database testing part of architectural verification.
 - **Browser-local active timer:** no incomplete database row or background synchronization is required, and failed stops can retry exactly. Persisted state is scoped to the authenticated user and foreign or legacy payloads are discarded rather than carried across accounts. The cost is that active state is device-local, best-effort, deliberately expires, and may be lost during an abnormal account transition.
 - **Single-row paused sessions:** active duration can differ from wall-clock range, preserving pause semantics without storing segments. The complete range—not just active segments—participates in overlap prevention.
 - **Aggregate SQL plus pure TypeScript shaping:** PostgreSQL filters and groups near the data, while deterministic TypeScript fills gaps and computes comparisons. This avoids transferring raw time blocks for analytics but creates an explicit RPC contract.
-- **Profile timezone for reporting:** a stored timezone makes server rendering and SQL agree about calendar boundaries. Browser-local editing can still diverge from the profile timezone after travel or manual browser changes.
+- **Profile timezone for reporting:** a stored timezone makes server rendering and SQL agree about calendar boundaries. Database and application runtimes validate independently because PostgreSQL and `Intl.DateTimeFormat` do not recognize exactly the same identifier set; the read-side UTC fallback detects that residual drift. Browser-local editing can still diverge from the profile timezone after travel or manual browser changes.
 - **Explicit route guards:** each protected page makes its authentication requirement visible. A future route must remember to add the same guard because the proxy only refreshes sessions.
 - **Bounded history reads:** dashboard and history queries are simple and predictable for V1, but there is no pagination for larger histories.
 
@@ -250,7 +253,7 @@ No hosting provider, production Supabase topology, region, SMTP configuration, o
 
 - Use Next.js Server Components for authenticated reads and Server Actions for product mutations.
 - Execute application database requests as the signed-in Supabase user so RLS and grants remain active.
-- Treat PostgreSQL as the final authority for ownership, tenancy, time validity, and overlap prevention.
+- Treat PostgreSQL as the final authority for ownership, tenancy, stored timezone validity, time validity, and overlap prevention.
 - Keep an active timer in versioned, user-scoped browser storage and persist only completed sessions.
 - Represent pauses as active duration within one overall time range rather than as separate database segments.
 - Perform timezone-aware filtering and grouping in SQL, then build complete ranges and comparisons in pure TypeScript.

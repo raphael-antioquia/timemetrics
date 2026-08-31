@@ -11,6 +11,7 @@ import type {
 } from "./time-block-state";
 import { UUID_PATTERN } from "@/lib/validation/uuid";
 import type { ActionResult } from "@/app/actions/action-result";
+import { isAllowedProfileTimezone } from "@/lib/time/is-allowed-profile-timezone";
 
 const MAX_FUTURE_CLOCK_SKEW_MILLISECONDS =
   5 * 60 * 1000;
@@ -600,27 +601,6 @@ export async function deleteTimeBlock(
     status: "success",
     message: "Time session deleted.",
   };
-}
-
-function isAllowedProfileTimezone(
-  candidate: string,
-): boolean {
-  if (
-    /^(UTC|GMT)?[+-]/.test(candidate) ||
-    candidate.startsWith("Etc/")
-  ) {
-    return false;
-  }
-
-  try {
-    new Intl.DateTimeFormat("en-US", {
-      timeZone: candidate,
-    });
-
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 export async function initializeUserTimezone(

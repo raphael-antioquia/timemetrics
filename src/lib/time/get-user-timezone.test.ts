@@ -1,4 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import * as Sentry from "@sentry/nextjs";
 
@@ -12,9 +18,12 @@ vi.mock("@/lib/supabase/server", () => ({
 
 vi.mock("@sentry/nextjs", () => ({
   captureException: vi.fn(),
+  captureMessage: vi.fn(),
 }));
 
-type MockedSupabase = Awaited<ReturnType<typeof createClient>>;
+type MockedSupabase = Awaited<
+  ReturnType<typeof createClient>
+>;
 
 function mockClient(from: unknown): MockedSupabase {
   return { from } as unknown as MockedSupabase;
@@ -61,6 +70,51 @@ describe("getUserTimezone", () => {
     expect(
       Sentry.captureException,
     ).not.toHaveBeenCalled();
+
+    expect(
+      Sentry.captureMessage,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("falls back to UTC and reports an invalid stored timezone", async () => {
+    const single = vi.fn().mockResolvedValue({
+      data: {
+        timezone: "Definitely/Not-A-Timezone",
+      },
+      error: null,
+    });
+
+    const eq = vi.fn().mockReturnValue({
+      single,
+    });
+
+    const select = vi.fn().mockReturnValue({
+      eq,
+    });
+
+    const from = vi.fn().mockReturnValue({
+      select,
+    });
+
+    vi.mocked(createClient).mockResolvedValue(
+      mockClient(from),
+    );
+
+    await expect(
+      getUserTimezone("user-123"),
+    ).resolves.toBe("UTC");
+
+    expect(
+      Sentry.captureMessage,
+    ).toHaveBeenCalledWith(
+      "Invalid stored profile timezone",
+      {
+        level: "warning",
+        tags: {
+          operation: "getUserTimezone",
+        },
+      },
+    );
   });
 
   it("captures and rethrows a Supabase error", async () => {

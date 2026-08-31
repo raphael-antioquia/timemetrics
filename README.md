@@ -48,9 +48,9 @@ TimeMetrics uses a server-first Next.js architecture:
 - **Database-enforced time integrity:** PostgreSQL requires a positive duration, a valid start/end range, and a duration no greater than that range. A GiST exclusion constraint prevents overlapping time blocks for the same user while allowing adjacent sessions.
 - **Tenant-safe relationships:** a composite foreign key prevents a time block from referencing another user's activity, independently of application checks and RLS.
 - **History preservation:** deleting an activity sets the reference on existing time blocks to `NULL`; the time remains in history and analytics as `Unlabeled`.
-- **Timezone-aware reporting:** profiles default to UTC and are initialized from the browser timezone. SQL RPCs convert local calendar boundaries to UTC and group sessions by their local start day.
+- **Timezone-safe reporting:** profiles default to UTC and are initialized from the browser timezone. PostgreSQL rejects unsupported stored timezone values, while the application defensively falls back to UTC and reports the condition if PostgreSQL and `Intl.DateTimeFormat` disagree. SQL RPCs convert local calendar boundaries to UTC and group sessions by their local start day.
 - **Comparison-period analytics:** seven- and 30-day ranges are compared with the immediately preceding equal-length range, including duration, active-day, session, average-session, and per-activity changes.
-- **Database security tests:** transactional pgTAP tests exercise RLS ownership, anonymous denial, table and column grants, cross-tenant references, deletion semantics, and analytics isolation.
+- **Database security tests:** transactional pgTAP tests exercise RLS ownership, anonymous denial, table and column grants, cross-tenant references, profile-timezone integrity, deletion semantics, and analytics isolation.
 
 ## Documentation
 
@@ -111,9 +111,9 @@ Database tests require the local Supabase stack to be running.
 
 ## Testing
 
-The Vitest suite covers the analytics transformation and comparison logic, calendar and timezone-sensitive date utilities, duration formatting, UUID validation, profile-timezone loading, and persisted-timer validation, including legacy payload rejection and authenticated-user ownership checks.
+The Vitest suite covers the analytics transformation and comparison logic, calendar and timezone-sensitive date utilities, duration formatting, UUID validation, profile-timezone validation/loading, and persisted-timer validation, including legacy payload rejection and authenticated-user ownership checks.
 
-The pgTAP suite tests the database as real `anon` and `authenticated` roles where appropriate. It verifies RLS, least-privilege grants, ownership isolation, foreign-key tenancy, activity deletion behavior, and analytics RPC isolation. GitHub Actions runs linting, type checking, Vitest, a production build, and the database suite on pushes and pull requests to `main`.
+The pgTAP suite tests the database as real `anon` and `authenticated` roles where appropriate. It verifies RLS, least-privilege grants, ownership isolation, foreign-key tenancy, profile-timezone integrity, activity deletion behavior, and analytics RPC isolation. GitHub Actions runs linting, type checking, Vitest, a production build, and the database suite on pushes and pull requests to `main`.
 
 ## Deployment
 
