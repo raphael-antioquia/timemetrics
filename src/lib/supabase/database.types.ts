@@ -170,11 +170,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "time_blocks_activity_id_fkey"
-            columns: ["activity_id"]
+            foreignKeyName: "time_blocks_activity_user_id_fkey"
+            columns: ["activity_id", "user_id"]
             isOneToOne: false
             referencedRelation: "activities"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "user_id"]
           },
           {
             foreignKeyName: "time_blocks_user_id_fkey"
@@ -199,6 +199,10 @@ export type Database = {
           session_count: number
           total_seconds: number
         }[]
+      }
+      is_allowed_profile_timezone: {
+        Args: { candidate: string }
+        Returns: boolean
       }
       time_blocks_for_today: {
         Args: { p_tz: string }
@@ -356,3 +360,4 @@ export const Constants = {
     },
   },
 } as const
+
