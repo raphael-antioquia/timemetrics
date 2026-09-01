@@ -145,7 +145,7 @@ select throws_ok(
     )
   $$,
   '42501',
-  'permission denied for table time_blocks',
+  'permission denied for function get_daily_activity_totals',
   'anon cannot read analytics through the RPC'
 );
 
