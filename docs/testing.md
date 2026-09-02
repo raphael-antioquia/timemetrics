@@ -73,6 +73,19 @@ The persisted-timer ownership change was also smoke-tested through the abnormal 
 
 This verifies the browser wiring for cross-account timer isolation manually. It does not replace automated browser or end-to-end coverage.
 
+The dashboard/history read-failure handling was also smoke-tested by temporarily forcing the activity-load error state at the page boundary.
+
+The populated-session path verified that:
+
+1. activity-dependent timer and manual-entry controls are disabled and show an explicit load-error message;
+2. existing recent/history sessions remain visible;
+3. session editing is disabled while deletion remains available; and
+4. a failed activity read does not cause a persisted timer session to be misclassified as referencing a deleted activity.
+
+The empty-session path was verified separately by forcing both an activity-load failure and an empty time-block list. The dashboard/history views displayed the activity-load warning alongside the legitimate "no sessions" state rather than allowing the empty-state early return to hide the failure.
+
+These checks verify the rendered degraded states manually. They do not add automated React, browser, or end-to-end coverage.
+
 ### Coverage reports
 
 The configured V8 coverage command includes `src/lib/**/*.ts`, excludes test files, and produces text and HTML reports. The generated `coverage` directory is ignored by Git.
@@ -265,11 +278,10 @@ The workflow is defined in [`.github/workflows/ci.yml`](../.github/workflows/ci.
 The repository currently has no automated coverage for:
 
 * browser or end-to-end flows, including sign-up/sign-in, timer interaction, persisted-timer ownership and cleanup across account transitions, manual entry, editing, deletion, navigation, and rendered analytics;
-* React component behavior or accessibility interactions;
+* React component behavior, rendered partial-read failure states, or accessibility interactions;
 * Server Actions for authentication, activities, and timezone initialization; time-block creation now has focused mocked-boundary coverage, but update/delete behavior is not directly covered;
 * a real TypeScript/Supabase integration path—the Supabase-facing Vitest tests use mocks, while pgTAP calls PostgreSQL directly;
-* direct pgTAP assertions for time-block overlap exclusion, positive/range-bounded duration checks, valid range checks, name uniqueness/nonblank checks, or `updated_at` triggers;
-* `time_blocks_for_today` behavior and non-UTC/DST boundaries inside the SQL analytics functions;
+* direct pgTAP assertions for activity/category name uniqueness and nonblank constraints or `updated_at` trigger behavior;
 * category policy CRUD behavior beyond the RLS-enabled and grant-catalog checks; or
 * enforced coverage thresholds or coverage publication in CI.
 
