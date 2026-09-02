@@ -51,7 +51,7 @@ TimeMetrics uses a server-first Next.js architecture:
 * **History preservation:** deleting an activity sets the reference on existing time blocks to `NULL`; the time remains in history and analytics as `Unlabeled`.
 * **Timezone-safe reporting:** profiles default to UTC and are initialized from the browser timezone. PostgreSQL rejects unsupported stored timezone values, while the application defensively falls back to UTC and reports the condition if PostgreSQL and `Intl.DateTimeFormat` disagree. SQL RPCs convert local calendar boundaries to UTC and group sessions by their local start day.
 * **Comparison-period analytics:** seven- and 30-day ranges are compared with the immediately preceding equal-length range, including duration, active-day, session, average-session, and per-activity changes.
-* **Database security tests:** transactional pgTAP tests exercise RLS ownership, anonymous denial, table and column grants, routine execution grants, future routine defaults, cross-tenant references, profile-timezone integrity, deletion semantics, and analytics isolation.
+* **Database security and integrity tests:** transactional pgTAP tests exercise RLS ownership, anonymous denial, table and column grants, routine execution grants, future routine defaults, cross-tenant references, time-block CHECK and overlap constraints, profile-timezone integrity, deletion semantics, and timezone-aware reporting behavior across non-UTC and DST boundaries.
 
 ## Documentation
 
@@ -114,7 +114,7 @@ Database tests require the local Supabase stack to be running.
 
 The Vitest suite covers the analytics transformation and comparison logic, calendar and timezone-sensitive date utilities, duration formatting, UUID validation, profile-timezone validation/loading, and persisted-timer validation, including legacy payload rejection and authenticated-user ownership checks.
 
-The pgTAP suite tests the database as real `anon` and `authenticated` roles where appropriate. It verifies RLS, least-privilege table, column, and routine grants, ownership isolation, foreign-key tenancy, profile-timezone integrity, activity deletion behavior, future routine default privileges, and analytics RPC isolation. Anonymous analytics execution is rejected at the function boundary rather than reaching the underlying tables. GitHub Actions runs linting, type checking, Vitest, a production build, and the database suite on pushes and pull requests to `main`.
+The pgTAP suite tests the database as real `anon` and `authenticated` roles where appropriate. It verifies RLS, least-privilege table, column, and routine grants, ownership isolation, foreign-key tenancy, time-block duration, range, adjacency, and overlap invariants, profile-timezone integrity, activity deletion behavior, future routine default privileges, and timezone-aware reporting behavior. Calendar-function coverage includes Toronto local-day boundaries, non-UTC analytics bucketing, 23-hour spring-forward and 25-hour fall-back days, repeated-hour sessions, and cross-midnight attribution by `started_at`. Anonymous analytics execution is rejected at the function boundary rather than reaching the underlying tables. GitHub Actions runs linting, type checking, Vitest, a production build, and the database suite on pushes and pull requests to `main`.
 
 ## Deployment
 

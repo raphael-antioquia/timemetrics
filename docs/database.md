@@ -81,7 +81,7 @@ The range is half-open: it includes the start and excludes the end. Consequently
 
 The exclusion operates on the entire start/end range, not `duration_seconds`, so paused gaps inside a timer session still reserve that range against overlap. It is enforced on both inserts and updates and produces PostgreSQL exclusion-violation code `23P01`, which the application translates into a user-facing overlap error in [`src/app/actions/time-blocks.ts`](../src/app/actions/time-blocks.ts).
 
-The constraint depends on the `btree_gist` extension, created in the `extensions` schema by the baseline migration. It supplies the GiST equality operator support needed to combine `user_id` equality with timestamp-range overlap.
+The constraint depends on the `btree_gist` extension, created in the `extensions` schema by the baseline migration. It supplies the GiST equality operator support needed to combine `user_id` equality with timestamp-range overlap. The duration, time-range, adjacency, and overlap invariants are exercised directly in [`time_blocks_constraints_test.sql`](../supabase/tests/database/time_blocks_constraints_test.sql).
 
 ## Profile Creation and Maintenance
 
@@ -230,13 +230,13 @@ The activity join is left-sided. A time block whose activity was deleted remains
 
 Blocks are attributed wholly to the local day containing `started_at`; the function does not split sessions at midnight. It emits only groups that contain data—the Next.js analytics layer fills empty dates and calculates comparisons.
 
-Because the function is security-invoker, it retains the caller's underlying table privileges and RLS restrictions. Only `authenticated` receives direct execution through the application allowlist. `anon` is rejected at the function boundary before the function can attempt an underlying `time_blocks` read. This runtime boundary and per-user output are tested in [`daily_activity_totals_rls_test.sql`](../supabase/tests/database/daily_activity_totals_rls_test.sql).
+Because the function is security-invoker, it retains the caller's underlying table privileges and RLS restrictions. Only `authenticated` receives direct execution through the application allowlist. `anon` is rejected at the function boundary before the function can attempt an underlying `time_blocks` read. This runtime boundary and per-user output are tested in [`daily_activity_totals_rls_test.sql`](../supabase/tests/database/daily_activity_totals_rls_test.sql). Non-UTC bucketing, Toronto spring-forward and fall-back boundaries, repeated-hour sessions, cross-midnight attribution, and invalid-timezone handling are exercised in [`time_block_calendar_functions_test.sql`](../supabase/tests/database/time_block_calendar_functions_test.sql).
 
 ### `time_blocks_for_today`
 
 `time_blocks_for_today(p_tz text)` is a `STABLE`, security-invoker SQL function used by the dashboard in [`src/app/page.tsx`](../src/app/page.tsx). It returns the current user's complete time-block rows whose `started_at` falls between today's local midnight and the next local midnight in `p_tz`, newest first. The UI sums `duration_seconds` from those rows.
 
-As with the range analytics function, “today” is based on the block's start instant rather than splitting a cross-midnight block. Direct execution is granted only to `authenticated` under the current application routine policy.
+As with the range analytics function, “today” is based on the block's start instant rather than splitting a cross-midnight block. Direct execution is granted only to `authenticated` under the current application routine policy. Toronto local-day boundaries, tenant isolation, newest-first ordering, and invalid-timezone handling are exercised in [`time_block_calendar_functions_test.sql`](../supabase/tests/database/time_block_calendar_functions_test.sql).
 
 Neither reporting function escalates privileges. Both use explicit `auth.uid()` filters in addition to the RLS applied to their underlying table reads.
 
