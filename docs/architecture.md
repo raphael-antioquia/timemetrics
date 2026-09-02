@@ -125,6 +125,8 @@ There is no generalized repository abstraction. Query shapes remain close to the
 
 Page queries add explicit ownership filters even though RLS already filters rows. Dashboard and history reads are bounded to 20 and 100 time blocks respectively; pagination is not implemented.
 
+Dashboard and history preserve query-error state separately from returned data. A failed activity read is not interpreted as an empty activity collection: activity-dependent controls degrade explicitly, while independently loaded time-block data remains visible.
+
 ### Application rules versus database rules
 
 The Server Actions enforce rules that support the product flow and clear error messages, including:
@@ -234,7 +236,7 @@ Manual-entry and edit controls use the browser's current timezone because `datet
 
 Server Actions return small discriminated success/error results for expected outcomes. Known domain violations such as duplicate activity names or overlapping time blocks are converted into user-facing messages rather than reported as system faults.
 
-Instrumented failures in authentication flows, Server Actions, profile-timezone loading, and analytics RPC access are captured with Sentry operation tags. `getUserTimezone()` additionally emits a warning when the stored timezone fails application-side validation and returns `UTC` as a defensive fallback. Authentication reporting suppresses expected 4xx user-flow errors and records server or status-less failures. The analytics adapter captures RPC failures and throws a generic error, which is handled by the analytics route error boundary. A global error component reports otherwise unhandled rendering errors. Dashboard and history page-query failures receive user-facing fallback states but are not all explicitly captured at their query sites.
+Instrumented failures in authentication flows, Server Actions, profile-timezone loading, analytics RPC access, and dashboard/history page queries are captured with Sentry operation tags. `getUserTimezone()` additionally emits a warning when the stored timezone fails application-side validation and returns `UTC` as a defensive fallback. Authentication reporting suppresses expected 4xx user-flow errors and records server or status-less failures. The analytics adapter captures RPC failures and throws a generic error, which is handled by the analytics route error boundary. A global error component reports otherwise unhandled rendering errors. Dashboard and history reads distinguish query failures from legitimate empty results. Activity-read failures surface an explicit degraded state: activity-dependent controls are disabled while successfully loaded time-block data remains available.
 
 Sentry is initialized for browser, Node.js, and edge execution contexts through [`src/instrumentation-client.ts`](../src/instrumentation-client.ts), [`src/instrumentation.ts`](../src/instrumentation.ts), and the root Sentry configuration files when `NEXT_PUBLIC_SENTRY_DSN` is configured. Request errors are connected through `onRequestError`, and client router transitions are instrumented. Performance tracing uses a `tracesSampleRate` of `0.1`, while Sentry Logs are disabled. Deployments without a configured DSN do not initialize Sentry.
 

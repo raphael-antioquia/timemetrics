@@ -125,5 +125,3 @@ This repository does not prescribe a hosting provider or contain a production de
 * The committed Supabase migrations applied to that project.
 
 The repository's CI verifies `npm run build`; the standard Node runtime is started with `npm run start`.
-
-I deliberately left the feature list, deployment section, existing timezone wording, and unrelated architecture claims alone. The changes are limited to the new routine privilege policy and its test coverage.
