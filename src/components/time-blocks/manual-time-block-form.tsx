@@ -17,6 +17,9 @@ import {
 import {
   parseDateTimeLocal,
 } from "@/lib/time/format-datetime-local";
+import {
+  ACTIVITIES_LOAD_ERROR,
+} from "@/components/time-blocks/messages";
 
 type Activity = {
   id: string;
@@ -25,10 +28,12 @@ type Activity = {
 
 type ManualTimeBlockFormProps = {
   activities: Activity[];
+  hasActivitiesError: boolean;
 };
 
 export function ManualTimeBlockForm({
   activities,
+  hasActivitiesError,
 }: ManualTimeBlockFormProps) {
   const [activityId, setActivityId] =
     useState<string | null>(null);
@@ -165,9 +170,16 @@ export function ManualTimeBlockForm({
         {!hasActivities && (
           <p
             id="manual-activity-help"
-            className="text-muted-foreground text-sm"
+            role={hasActivitiesError ? "alert" : undefined}
+            className={
+              hasActivitiesError
+                ? "text-destructive text-sm"
+                : "text-muted-foreground text-sm"
+            }
           >
-            Create an activity before logging time.
+            {hasActivitiesError
+              ? ACTIVITIES_LOAD_ERROR
+              : "Create an activity before logging time."}
           </p>
         )}
       </div>

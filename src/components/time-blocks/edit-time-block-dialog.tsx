@@ -42,11 +42,13 @@ type Activity = {
 type EditTimeBlockDialogProps = {
   timeBlock: TimeBlockListItem;
   activities: Activity[];
+  hasActivitiesError: boolean;
 };
 
 export function EditTimeBlockDialog({
   timeBlock,
   activities,
+  hasActivitiesError,
 }: EditTimeBlockDialogProps) {
   const fieldId = useId();
 
@@ -189,6 +191,7 @@ export function EditTimeBlockDialog({
             type="button"
             variant="ghost"
             size="sm"
+            disabled={hasActivitiesError}
           />
         }
       >

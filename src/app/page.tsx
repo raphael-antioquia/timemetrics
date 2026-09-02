@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ActivityList } from "@/components/activities/activity-list";
@@ -66,6 +67,31 @@ export default async function HomePage() {
     }),
   ]);
 
+  if (activitiesError) {
+    Sentry.captureException(activitiesError, {
+      tags: {
+        operation: "loadDashboardActivities",
+      },
+    });
+  }
+
+  if (timeBlocksError) {
+    Sentry.captureException(timeBlocksError, {
+      tags: {
+        operation: "loadDashboardTimeBlocks",
+      },
+    });
+  }
+
+  if (todayTimeBlocksError) {
+    Sentry.captureException(todayTimeBlocksError, {
+      tags: {
+        operation: "loadDashboardTodayTotal",
+      },
+    });
+  }
+
+  const hasActivitiesError = activitiesError !== null;
   const activityList = activities ?? [];
   const timeBlockList = timeBlocks ?? [];
 
@@ -153,6 +179,7 @@ export default async function HomePage() {
             <CardContent>
               <ActivityTimer
                 activities={activityList}
+                hasActivitiesError={hasActivitiesError}
                 userId={user.id}
               />
             </CardContent>
@@ -172,6 +199,7 @@ export default async function HomePage() {
             <CardContent>
               <ManualTimeBlockForm
                 activities={activityList}
+                hasActivitiesError={hasActivitiesError}
               />
             </CardContent>
           </Card>
@@ -193,7 +221,7 @@ export default async function HomePage() {
               <div className="border-t pt-4">
                 <ActivityList
                   activities={activityList}
-                  hasError={activitiesError !== null}
+                  hasError={hasActivitiesError}
                 />
               </div>
             </CardContent>
@@ -215,6 +243,7 @@ export default async function HomePage() {
                 timeBlocks={timeBlockList}
                 activities={activityList}
                 hasError={timeBlocksError !== null}
+                hasActivitiesError={hasActivitiesError}
                 timezone={timezone}
               />
             </CardContent>

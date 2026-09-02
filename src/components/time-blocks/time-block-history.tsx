@@ -1,4 +1,7 @@
 import { formatDuration } from "@/lib/time/format-duration";
+import {
+  ACTIVITIES_LOAD_ERROR_EDITING,
+} from "@/components/time-blocks/messages";
 import type { TimeBlockListItem } from "@/lib/time/time-block-types";
 import { TimeBlockRow } from "@/components/time-blocks/time-block-row";
 
@@ -11,6 +14,7 @@ type TimeBlockHistoryProps = {
   timeBlocks: TimeBlockListItem[];
   activities: Activity[];
   hasError: boolean;
+  hasActivitiesError: boolean;
   timezone: string;
 };
 
@@ -107,6 +111,7 @@ export function TimeBlockHistory({
   timeBlocks,
   activities,
   hasError,
+  hasActivitiesError,
   timezone,
 }: TimeBlockHistoryProps) {
   if (hasError) {
@@ -120,11 +125,24 @@ export function TimeBlockHistory({
     );
   }
 
+  const activitiesErrorMessage = hasActivitiesError ? (
+    <p
+      role="alert"
+      className="text-destructive text-sm"
+    >
+      {ACTIVITIES_LOAD_ERROR_EDITING}
+    </p>
+  ) : null;
+
   if (timeBlocks.length === 0) {
     return (
-      <p className="text-muted-foreground text-sm">
-        You haven&apos;t tracked any sessions yet.
-      </p>
+      <div className="space-y-4">
+        {activitiesErrorMessage}
+
+        <p className="text-muted-foreground text-sm">
+          You haven&apos;t tracked any sessions yet.
+        </p>
+      </div>
     );
   }
 
@@ -144,6 +162,8 @@ export function TimeBlockHistory({
 
   return (
     <div className="space-y-8">
+      {activitiesErrorMessage}
+
       {groups.map((group) => (
         <section
           key={group.dateKey}
@@ -168,6 +188,7 @@ export function TimeBlockHistory({
                 key={timeBlock.id}
                 timeBlock={timeBlock}
                 activities={activities}
+                hasActivitiesError={hasActivitiesError}
                 timeRangeFormatter={timeFormatter}
               />
             ))}

@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -17,7 +18,7 @@ export default async function HistoryPage() {
   }
 
   const [
-    { data: activities },
+    { data: activities, error: activitiesError },
     { data: timeBlocks, error: timeBlocksError },
     timezone,
   ] = await Promise.all([
@@ -45,6 +46,22 @@ export default async function HistoryPage() {
 
     getUserTimezone(user.id),
   ]);
+
+  if (activitiesError) {
+    Sentry.captureException(activitiesError, {
+      tags: {
+        operation: "loadHistoryActivities",
+      },
+    });
+  }
+
+  if (timeBlocksError) {
+    Sentry.captureException(timeBlocksError, {
+      tags: {
+        operation: "loadHistoryTimeBlocks",
+      },
+    });
+  }
 
   return (
     <main className="min-h-screen bg-background px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
@@ -77,6 +94,7 @@ export default async function HistoryPage() {
             timeBlocks={timeBlocks ?? []}
             activities={activities ?? []}
             hasError={timeBlocksError !== null}
+            hasActivitiesError={activitiesError !== null}
             timezone={timezone}
           />
         </section>
