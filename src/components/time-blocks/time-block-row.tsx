@@ -11,12 +11,14 @@ type Activity = {
 type TimeBlockRowProps = {
   timeBlock: TimeBlockListItem;
   activities: Activity[];
+  hasActivitiesError: boolean;
   timeRangeFormatter: Intl.DateTimeFormat;
 };
 
 export function TimeBlockRow({
   timeBlock,
   activities,
+  hasActivitiesError,
   timeRangeFormatter,
 }: TimeBlockRowProps) {
   return (
@@ -44,6 +46,7 @@ export function TimeBlockRow({
         <EditTimeBlockDialog
           timeBlock={timeBlock}
           activities={activities}
+          hasActivitiesError={hasActivitiesError}
         />
 
         <DeleteTimeBlockButton

@@ -21,6 +21,9 @@ import {
   readPersistedTimer,
   writePersistedTimer,
 } from "@/lib/time/persisted-timer";
+import {
+  ACTIVITIES_LOAD_ERROR,
+} from "@/components/time-blocks/messages";
 
 type TimerStatus = "idle" | "running" | "paused";
 
@@ -31,6 +34,7 @@ type Activity = {
 
 type ActivityTimerProps = {
   activities: Activity[];
+  hasActivitiesError: boolean;
   userId: string;
 };
 
@@ -48,6 +52,7 @@ function formatElapsed(totalSeconds: number): string {
 
 export function ActivityTimer({
   activities,
+  hasActivitiesError,
   userId,
 }: ActivityTimerProps) {
   const [selectedActivityId, setSelectedActivityId] =
@@ -173,6 +178,7 @@ export function ActivityTimer({
 
   const pendingActivityWasDeleted =
     pendingTimeBlock !== null &&
+    !hasActivitiesError &&
     !activities.some(
       (activity) =>
         activity.id === pendingTimeBlock.activityId,
@@ -445,9 +451,16 @@ export function ActivityTimer({
         {!hasActivities && (
           <p
             id="timer-activity-help"
-            className="text-muted-foreground text-sm"
+            role={hasActivitiesError ? "alert" : undefined}
+            className={
+              hasActivitiesError
+                ? "text-destructive text-sm"
+                : "text-muted-foreground text-sm"
+            }
           >
-            Create an activity before starting a timer.
+            {hasActivitiesError
+              ? ACTIVITIES_LOAD_ERROR
+              : "Create an activity before starting a timer."}
           </p>
         )}
       </div>
