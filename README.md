@@ -125,3 +125,11 @@ This repository does not prescribe a hosting provider or contain a production de
 * The committed Supabase migrations applied to that project.
 
 The repository's CI verifies `npm run build`; the standard Node runtime is started with `npm run start`.
+
+## License
+
+Copyright © 2026 Raphael Antioquia. All rights reserved.
+
+TimeMetrics is proprietary software made publicly available for portfolio demonstration and educational reference.
+
+See [LICENSE](LICENSE) for details.
