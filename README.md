@@ -93,6 +93,31 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) and create an account to begin tracking time.
 
+### Demo data
+
+A local-only generator populates a demo account with 60 calendar days of
+synthetic productivity history for demonstrations and screenshots.
+
+After completing the local setup above, run:
+
+```bash
+npm run seed:demo
+npm run dev
+```
+
+Sign in with `demo@example.com` / `TimeMetrics-Local-Demo-2026!`
+(intentionally public, local-only credentials; never reuse them for hosted accounts).
+
+Preview a dataset without accessing Supabase:
+
+```bash
+DEMO_PREVIEW=1 DEMO_SEED=7 npm run seed:demo
+```
+
+The generator accepts only local Supabase endpoints, writes through the
+authenticated client, and refuses to seed populated demo accounts.
+See [Demo data](docs/demo-data.md) for configuration, safety, and regeneration.
+
 ## Commands
 
 | Command                 | Purpose                                                  |
@@ -105,6 +130,7 @@ Open [http://localhost:3000](http://localhost:3000) and create an account to beg
 | `npm run typecheck`     | Run TypeScript without emitting files                    |
 | `npm test`              | Run the Vitest suite once                                |
 | `npm run test:coverage` | Run Vitest with the configured V8 coverage report        |
+| `npm run seed:demo`     | Generate and persist local demo data                     |
 | `npx supabase start`    | Start the local Supabase stack                           |
 | `npx supabase test db`  | Run the pgTAP database test suite against local Supabase |
 
@@ -113,6 +139,10 @@ Database tests require the local Supabase stack to be running.
 ## Testing
 
 The Vitest suite covers the analytics transformation and comparison logic, calendar and timezone-sensitive date utilities, duration formatting, UUID validation, profile-timezone validation/loading, and persisted-timer validation, including legacy payload rejection and authenticated-user ownership checks.
+
+The demo utility has deterministic generation tests, mocked persistence
+tests, and executable regression tests for environment configuration,
+preview mode, and local-only endpoint validation.
 
 The pgTAP suite tests the database as real `anon` and `authenticated` roles where appropriate. It verifies RLS, least-privilege table, column, and routine grants, ownership isolation, foreign-key tenancy, time-block duration, range, adjacency, and overlap invariants, profile-timezone integrity, activity deletion behavior, future routine default privileges, and timezone-aware reporting behavior. Calendar-function coverage includes Toronto local-day boundaries, non-UTC analytics bucketing, 23-hour spring-forward and 25-hour fall-back days, repeated-hour sessions, and cross-midnight attribution by `started_at`. Anonymous analytics execution is rejected at the function boundary rather than reaching the underlying tables. GitHub Actions runs linting, type checking, Vitest, a production build, and the database suite on pushes and pull requests to `main`.
 

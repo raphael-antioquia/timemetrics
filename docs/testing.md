@@ -21,7 +21,10 @@ For the database rules themselves, see [Database](./database.md).
 
 ## Vitest Suite
 
-[`vitest.config.ts`](../vitest.config.ts) discovers `src/**/*.test.{ts,tsx}` and uses TypeScript path aliases through `vite-tsconfig-paths`. No browser or DOM environment is configured, so these are Node-based tests rather than component tests.
+[`vitest.config.ts`](../vitest.config.ts) discovers
+`src/**/*.test.{ts,tsx}` and `scripts/**/*.test.ts` and uses TypeScript
+path aliases through `vite-tsconfig-paths`. No browser or DOM environment
+is configured, so these are Node-based tests rather than component tests.
 
 The test process pins `TZ=America/Toronto`, a non-UTC timezone with daylight-saving transitions. This prevents date logic from passing only because a developer or CI machine happens to use UTC.
 
@@ -59,6 +62,36 @@ The database implementation of the analytics RPC is covered separately by pgTAP;
 `src/app/actions/time-blocks.test.ts` exercises time-block creation through the public Server Actions with a mocked Supabase boundary. It covers successful inserts, exact-match recovery after `23P01`, genuine overlaps, recovery-query failures, non-overlap insert failures, and the shared manual-entry persistence path.
 
 There are no direct tests for React components, pages, authentication actions/routes, activity Server Actions, the interactive timer lifecycle, or browser `localStorage` integration beyond the persisted-state parser. In particular, the `readPersistedTimer` path that removes invalid or foreign-user state from `localStorage` is not covered by an automated browser test.
+
+### Demo data generator coverage
+
+The local demo utility separates deterministic dataset generation from
+Supabase persistence.
+
+| Test file | Current coverage |
+| --------- | ---------------- |
+| [`generate-demo-data.test.ts`](../scripts/generate-demo-data.test.ts) | Reproducible random sequences, deterministic datasets, chronological ordering, non-overlapping sessions, positive and range-bounded durations, valid activity references, local calendar boundaries, DST transitions, explicit timezone handling, and demo dataset usefulness. |
+| [`seed-demo.test.ts`](../scripts/seed-demo.test.ts) | Local endpoint validation, account provisioning and reuse, authentication failures, populated-account rejection, failed or indeterminate existence queries, activity UUID mapping, batch insertion, failure handling, archived activity deletion ordering, and local-calendar comparison summaries. |
+
+The persistence unit tests mock the Supabase client. They verify the
+script's orchestration and request construction rather than PostgreSQL
+enforcement of RLS, grants, constraints, or foreign-key deletion behavior.
+
+Executable regression tests run the actual Node.js script in an
+isolated temporary directory without an environment file. They verify
+preview-only execution, missing configuration handling, invalid seed
+format and range rejection, and local-only endpoint protection.
+
+The seed workflow has also been manually exercised against the real
+local Supabase stack using the authenticated publishable client.
+Persisted record counts, activity deletion semantics, and sequential
+reseeding rejection were inspected separately.
+
+This manual verification does not constitute automated Supabase
+integration, browser, or end-to-end test coverage.
+
+See [Demo Data](demo-data.md) for configuration, safety boundaries,
+and usage instructions.
 
 ### Manual verification
 
@@ -280,7 +313,10 @@ The repository currently has no automated coverage for:
 * browser or end-to-end flows, including sign-up/sign-in, timer interaction, persisted-timer ownership and cleanup across account transitions, manual entry, editing, deletion, navigation, and rendered analytics;
 * React component behavior, rendered partial-read failure states, or accessibility interactions;
 * Server Actions for authentication, activities, and timezone initialization; time-block creation now has focused mocked-boundary coverage, but update/delete behavior is not directly covered;
-* a real TypeScript/Supabase integration path—the Supabase-facing Vitest tests use mocks, while pgTAP calls PostgreSQL directly;
+* automated integration tests connecting TypeScript code to a running
+  Supabase instance—the Supabase-facing unit tests use mocks, the demo
+  executable tests do not access Supabase, and pgTAP calls PostgreSQL
+  directly; real demo persistence has been exercised manually;
 * direct pgTAP assertions for activity/category name uniqueness and nonblank constraints or `updated_at` trigger behavior;
 * category policy CRUD behavior beyond the RLS-enabled and grant-catalog checks; or
 * enforced coverage thresholds or coverage publication in CI.
