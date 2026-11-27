@@ -4,6 +4,8 @@
 
 import * as Sentry from "@sentry/nextjs";
 
+import { sentryPrivacyOptions } from "@/lib/observability/sentry-privacy";
+
 const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
 
 if (dsn) {
@@ -13,13 +15,7 @@ if (dsn) {
     tracesSampleRate: 0.1,
     // Enable logs to be sent to Sentry
     enableLogs: false,
-
-    dataCollection: {
-      // To disable sending user data and HTTP bodies, uncomment the lines below. For more info visit:
-      // https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/#dataCollection
-      // userInfo: false,
-      // httpBodies: [],
-    },
+    ...sentryPrivacyOptions,
   });
 }
 
