@@ -18,10 +18,8 @@ import {
 const DEMO_EMAIL = "demo@example.com";
 const DEMO_PASSWORD = "TimeMetrics-Local-Demo-2026!";
 
-const SEED = 42;
 const DAYS = 60;
 const TIME_ZONE = "America/Toronto";
-const PREVIEW_ONLY = false;
 
 const LOCAL_ORIGINS = new Set([
   "http://127.0.0.1:54321",
@@ -403,8 +401,22 @@ function printSummary(
 }
 
 async function main(): Promise<void> {
+  const rawSeed = process.env.DEMO_SEED ?? "42";
+
+  if (
+    !/^(0|[1-9][0-9]*)$/.test(rawSeed) ||
+    Number(rawSeed) > 0xffff_ffff
+  ) {
+    throw new Error(
+      "DEMO_SEED must be an integer between 0 and 4294967295",
+    );
+  }
+
+  const seed = Number(rawSeed);
+  const previewOnly = process.env.DEMO_PREVIEW === "1";
+
   const config: GeneratorConfig = {
-    seed: SEED,
+    seed,
     now: new Date(),
     timeZone: TIME_ZONE,
     days: DAYS,
@@ -414,7 +426,7 @@ async function main(): Promise<void> {
 
   printSummary(dataset, config);
 
-  if (PREVIEW_ONLY) {
+  if (previewOnly) {
     console.log("Preview only. No database writes.");
     return;
   }

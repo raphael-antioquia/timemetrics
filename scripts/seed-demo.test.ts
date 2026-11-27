@@ -1,3 +1,8 @@
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   beforeEach,
   describe,
@@ -618,5 +623,120 @@ describe("summarizeDemoData", () => {
         (period) => period.changePercent === null,
       ),
     ).toBe(true);
+  });
+});
+
+function runSeedCommand(
+  overrides: Record<string, string> = {},
+) {
+  const directory = mkdtempSync(
+    join(tmpdir(), "timemetrics-demo-"),
+  );
+
+  const scriptPath = fileURLToPath(
+    new URL("./seed-demo.ts", import.meta.url),
+  );
+
+  const env = { ...process.env };
+
+  for (const key of [
+    "DEMO_SEED",
+    "DEMO_PREVIEW",
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+  ]) {
+    delete env[key];
+  }
+
+  try {
+    return spawnSync(
+      process.execPath,
+      [
+        "--env-file-if-exists=.env.local",
+        scriptPath,
+      ],
+      {
+        cwd: directory,
+        env: { ...env, ...overrides },
+        encoding: "utf8",
+        timeout: 15_000,
+      },
+    );
+  } finally {
+    rmSync(directory, {
+      recursive: true,
+      force: true,
+    });
+  }
+}
+
+describe("seed demo command", () => {
+  it("previews without an environment file or Supabase configuration", () => {
+    const result = runSeedCommand({
+      DEMO_PREVIEW: "1",
+      DEMO_SEED: "7",
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Seed: 7");
+    expect(result.stdout).toContain(
+      "Preview only. No database writes.",
+    );
+    expect(result.stdout).not.toContain(
+      "Demo seeding completed successfully.",
+    );
+  });
+
+  it("reports missing Supabase configuration when persistence is requested", () => {
+    const result = runSeedCommand();
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "Missing local Supabase environment configuration",
+    );
+  });
+
+  it.each([
+    "abc",
+    "",
+    "1.5",
+    "-1",
+    "4294967296",
+    " 7",
+    "7 ",
+    "0x10",
+    "1e3",
+    "007",
+  ])("rejects an invalid seed: %j", (seed) => {
+    const result = runSeedCommand({
+      DEMO_PREVIEW: "1",
+      DEMO_SEED: seed,
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "DEMO_SEED must be an integer between 0 and 4294967295",
+    );
+
+    expect(result.stdout).not.toContain(
+      "Generated demo dataset",
+    );
+  });
+
+  it("rejects a non-local endpoint through the executable", () => {
+    const result = runSeedCommand({
+      NEXT_PUBLIC_SUPABASE_URL:
+        "https://example.invalid",
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
+        "test-publishable-key",
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "Demo seeding is restricted to local Supabase",
+    );
+    expect(result.stdout).not.toContain(
+      "Demo seeding completed successfully.",
+    );
   });
 });
