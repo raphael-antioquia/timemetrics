@@ -9,7 +9,10 @@ export default defineConfig({
         // cannot silently pass under CI's default UTC environment.
         TZ: "America/Toronto",
     },
-    include: ["src/**/*.test.{ts,tsx}"],
+    include: [
+      "src/**/*.test.{ts,tsx}",
+      "scripts/**/*.test.ts",
+    ],
     coverage: {
       provider: "v8",
       include: ["src/lib/**/*.ts"],
